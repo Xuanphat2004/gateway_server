@@ -1,0 +1,68 @@
+2025-07-29 04:32:22,020  * Running on http://0.0.0.0:8080/ (Press CTRL+C to quit)
+2025-07-29 04:32:22,037  * Restarting with stat
+2025-07-29 04:32:26,313  * Debugger is active!
+2025-07-29 04:32:26,325  * Debugger PIN: 157-319-140
+2025-07-29 04:35:10,582  * Running on http://0.0.0.0:8080/ (Press CTRL+C to quit)
+2025-07-29 04:35:10,598  * Restarting with stat
+2025-07-29 04:35:14,843  * Debugger is active!
+2025-07-29 04:35:14,849  * Debugger PIN: 157-319-140
+2025-07-29 04:39:10,241  * Running on http://0.0.0.0:8080/ (Press CTRL+C to quit)
+2025-07-29 04:39:10,257  * Restarting with stat
+2025-07-29 04:39:14,511  * Debugger is active!
+2025-07-29 04:39:14,517  * Debugger PIN: 157-319-140
+2025-07-29 04:39:54,660 192.168.1.13 - - [29/Jul/2025 04:39:54] "[35m[1mGET / HTTP/1.1[0m" 500 -
+2025-07-29 04:39:54,723 192.168.1.13 - - [29/Jul/2025 04:39:54] "[37mGET /?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1[0m" 200 -
+2025-07-29 04:39:54,749 192.168.1.13 - - [29/Jul/2025 04:39:54] "[37mGET /?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1[0m" 200 -
+2025-07-29 04:39:54,754 192.168.1.13 - - [29/Jul/2025 04:39:54] "[37mGET /?__debugger__=yes&cmd=resource&f=jquery.js HTTP/1.1[0m" 200 -
+2025-07-29 04:39:54,854 192.168.1.13 - - [29/Jul/2025 04:39:54] "[37mGET /?__debugger__=yes&cmd=resource&f=ubuntu.ttf HTTP/1.1[0m" 200 -
+2025-07-29 04:39:54,929 192.168.1.13 - - [29/Jul/2025 04:39:54] "[37mGET /?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1[0m" 200 -
+2025-07-29 04:39:55,577 192.168.1.13 - - [29/Jul/2025 04:39:55] "[37mGET /?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1[0m" 200 -
+2025-07-29 04:54:21,328  * Running on http://0.0.0.0:8080/ (Press CTRL+C to quit)
+2025-07-29 04:54:21,344  * Restarting with stat
+2025-07-29 04:54:25,571  * Debugger is active!
+2025-07-29 04:54:25,577  * Debugger PIN: 157-319-140
+2025-07-29 04:54:25,933 192.168.1.13 - - [29/Jul/2025 04:54:25] "[35m[1mGET / HTTP/1.1[0m" 500 -
+2025-07-29 04:54:25,996 192.168.1.13 - - [29/Jul/2025 04:54:25] "[37mGET /?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1[0m" 200 -
+2025-07-29 04:54:26,005 192.168.1.13 - - [29/Jul/2025 04:54:26] "[37mGET /?__debugger__=yes&cmd=resource&f=jquery.js HTTP/1.1[0m" 200 -
+2025-07-29 04:54:26,029 192.168.1.13 - - [29/Jul/2025 04:54:26] "[37mGET /?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1[0m" 200 -
+2025-07-29 04:54:26,076 192.168.1.13 - - [29/Jul/2025 04:54:26] "[37mGET /?__debugger__=yes&cmd=resource&f=ubuntu.ttf HTTP/1.1[0m" 200 -
+2025-07-29 04:54:26,100 192.168.1.13 - - [29/Jul/2025 04:54:26] "[37mGET /?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1[0m" 200 -
+2025-07-29 04:54:26,745 192.168.1.13 - - [29/Jul/2025 04:54:26] "[37mGET /?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1[0m" 200 -
+2025-07-29 04:57:09,030  * Running on http://0.0.0.0:8080/ (Press CTRL+C to quit)
+2025-07-29 04:57:09,046  * Restarting with stat
+2025-07-29 04:57:13,273  * Debugger is active!
+2025-07-29 04:57:13,279  * Debugger PIN: 157-319-140
+2025-07-29 04:57:13,634 192.168.1.13 - - [29/Jul/2025 04:57:13] "[35m[1mGET / HTTP/1.1[0m" 500 -
+2025-07-29 04:57:13,694 192.168.1.13 - - [29/Jul/2025 04:57:13] "[37mGET /?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1[0m" 200 -
+2025-07-29 04:57:13,714 192.168.1.13 - - [29/Jul/2025 04:57:13] "[37mGET /?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1[0m" 200 -
+2025-07-29 04:57:13,719 192.168.1.13 - - [29/Jul/2025 04:57:13] "[37mGET /?__debugger__=yes&cmd=resource&f=jquery.js HTTP/1.1[0m" 200 -
+2025-07-29 04:57:13,780 192.168.1.13 - - [29/Jul/2025 04:57:13] "[37mGET /?__debugger__=yes&cmd=resource&f=ubuntu.ttf HTTP/1.1[0m" 200 -
+2025-07-29 04:57:13,799 192.168.1.13 - - [29/Jul/2025 04:57:13] "[37mGET /?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1[0m" 200 -
+2025-07-29 04:57:13,975 192.168.1.13 - - [29/Jul/2025 04:57:13] "[37mGET /?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1[0m" 200 -
+2025-07-29 04:58:29,722  * Detected change in '/home/moxa/gateway_code_c/ui_service.py', reloading
+2025-07-29 04:58:30,152  * Restarting with stat
+2025-07-29 04:58:34,386  * Debugger is active!
+2025-07-29 04:58:34,394  * Debugger PIN: 157-319-140
+2025-07-29 04:58:34,663 192.168.1.13 - - [29/Jul/2025 04:58:34] "[37mGET / HTTP/1.1[0m" 200 -
+2025-07-29 04:58:34,906 192.168.1.13 - - [29/Jul/2025 04:58:34] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-07-29 07:53:43,326 192.168.1.13 - - [29/Jul/2025 07:53:43] "[37mGET / HTTP/1.1[0m" 200 -
+2025-07-30 04:24:12,900  * Running on http://0.0.0.0:8080/ (Press CTRL+C to quit)
+2025-07-30 04:24:12,918  * Restarting with stat
+2025-07-30 04:24:17,155  * Debugger is active!
+2025-07-30 04:24:17,162  * Debugger PIN: 157-319-140
+2025-07-30 04:24:17,431 192.168.1.10 - - [30/Jul/2025 04:24:17] "[37mGET / HTTP/1.1[0m" 200 -
+2025-07-30 04:24:18,285 192.168.1.10 - - [30/Jul/2025 04:24:18] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-07-30 04:25:03,555 Added mapping: TCP 40100 -> RTU ID 3, Address 100
+2025-07-30 04:25:03,569 192.168.1.10 - - [30/Jul/2025 04:25:03] "[32mPOST /add_mapping HTTP/1.1[0m" 302 -
+2025-07-30 04:25:03,606 192.168.1.10 - - [30/Jul/2025 04:25:03] "[37mGET / HTTP/1.1[0m" 200 -
+2025-07-30 08:29:26,285  * Running on http://0.0.0.0:8080/ (Press CTRL+C to quit)
+2025-07-30 08:29:26,304  * Restarting with stat
+2025-07-30 08:29:30,552  * Debugger is active!
+2025-07-30 08:29:30,558  * Debugger PIN: 157-319-140
+2025-07-30 08:29:37,341 192.168.1.10 - - [30/Jul/2025 08:29:37] "[37mGET / HTTP/1.1[0m" 200 -
+2025-07-31 03:49:49,271  * Running on http://0.0.0.0:8080/ (Press CTRL+C to quit)
+2025-07-31 03:49:49,290  * Restarting with stat
+2025-07-31 03:49:53,515  * Debugger is active!
+2025-07-31 03:49:53,524  * Debugger PIN: 184-365-552
+2025-07-31 03:49:55,915 192.168.1.7 - - [31/Jul/2025 03:49:55] "[37mGET / HTTP/1.1[0m" 200 -
+2025-07-31 03:49:56,674 192.168.1.7 - - [31/Jul/2025 03:49:56] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
