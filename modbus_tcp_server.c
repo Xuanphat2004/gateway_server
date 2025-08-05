@@ -1,140 +1,247 @@
-/* modbus_tcp_server.c
- * TCP server receives Modbus TCP requests from clients,
- * maps TCP address to RTU address via SQLite,
- * then sends a JSON request to the RTU server via Redis Pub/Sub.
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
-#include <sys/socket.h>
+#include <pthread.h>   // process multi-thread
+#include <sqlite3.h>   // SQLite database
+#include <hiredis/hiredis.h>  // redis server
 #include <netinet/in.h>
-#include <sqlite3.h>
-#include <hiredis/hiredis.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <jansson.h> 
 
-#define PORT 1502
-#define REDIS_CHANNEL "modbus_request"
+#define PORT 1502            // TCP port for Cloud connection
+#define BUFFER_SIZE 256      // Buffer size for TCP packets
+#define MAX_QUEUE 100        // number of requests in queue
 
-// Xử lý gói tin từ client TCP
-void handle_tcp_client(int client_sock, redisContext *redis, sqlite3 *db) {
-    uint8_t buffer[260];
-    int bytes = recv(client_sock, buffer, sizeof(buffer), 0);
-    if (bytes <= 0) {
-        perror("recv error");
-        return;
-    }
+//====================================================================================================
+// ======== declare queue for request packets - FIFO structure =======================================
+typedef struct // structure for modbus TCP packet
+{
+    int transaction_id;     
+    int rtu_id;             
+    int address;            
+    int function;          
+    int quantity;           
+    int client_sock;        
+} 
+RequestPacket;
 
-    printf("\nReceived TCP packet: ");
-    for (int i = 0; i < bytes; i++) printf("%02X", buffer[i]);
-    printf("\n");
+RequestPacket request_queue[MAX_QUEUE];     
+int queue_front = 0; // head index
+int queue_rear  = 0;  // final index
+pthread_mutex_t queue_mutex = PTHREAD_MUTEX_INITIALIZER;  // declare mutex for queue access
+pthread_cond_t  queue_cond  = PTHREAD_COND_INITIALIZER;     
 
-    if (bytes < 12) {
-        printf("Invalid packet: too short\n");
-        return;
-    }
+//=====================================================================================================
+// ======= array contain RTU feedback for TCP server ==================================================
+typedef struct 
+{
+    int transaction_id;     
+    int client_sock;         
+} 
+corresponding_address;
 
-    // Phân tích gói tin Modbus TCP
-    uint16_t transaction_id = (buffer[0] << 8) | buffer[1];
-    uint8_t unit_id = buffer[6];
-    uint8_t function = buffer[7];
-    uint16_t start_address = (buffer[8] << 8) | buffer[9];
-    uint16_t quantity = (buffer[10] << 8) | buffer[11];
+corresponding_address pending_responses[100];              //  save response from RTU server
+int pending_count = 0;                                     // number of responses pending
+pthread_mutex_t pending_mutex = PTHREAD_MUTEX_INITIALIZER; // mutex for protect response array
 
-    printf("Parsed -> Unit ID: %d, Function: %d, TCP Address: %d, Quantity: %d\n",
-           unit_id, function, start_address, quantity);
-
-    // Truy vấn SQLite ánh xạ TCP -> RTU
-    sqlite3_stmt *stmt;
-    const char *sql = "SELECT rtu_id, rtu_address FROM mapping WHERE tcp_address = ?";
-    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
-        fprintf(stderr, "SQLite prepare error: %s\n", sqlite3_errmsg(db));
-        return;
-    }
-    sqlite3_bind_int(stmt, 1, start_address);
-
-    if (sqlite3_step(stmt) == SQLITE_ROW) {
-        int rtu_id = sqlite3_column_int(stmt, 0);
-        int rtu_address = sqlite3_column_int(stmt, 1);
-
-        printf("Mapped RTU -> ID: %d, Address: %d\n", rtu_id, rtu_address);
-
-        // Đóng gói JSON gửi xuống RTU Server qua Redis
-        char payload[256];
-        snprintf(payload, sizeof(payload),
-                 "{\"transaction_id\":%d,\"rtu_id\":%d,\"rtu_address\":%d,\"function\":%d,\"quantity\":%d}",
-                 transaction_id, rtu_id, rtu_address, function, quantity);
-
-        redisReply *reply = redisCommand(redis, "PUBLISH %s %s", REDIS_CHANNEL, payload);
-        if (reply) freeReplyObject(reply);
-
-        printf("Published request to RTU server: %s\n", payload);
-    } else {
-        printf("No mapping found for TCP address: %d\n", start_address);
-    }
-
-    sqlite3_finalize(stmt);
+//=====================================================================================================
+// ======= Function: add new request into queue =======================================================
+void add_queue(RequestPacket pkt) 
+{    
+    pthread_mutex_lock(&queue_mutex);          // lock before writing into Queue
+    request_queue[queue_rear] = pkt;           // writing new packet to queue at rear position
+    queue_rear = (queue_rear + 1) % MAX_QUEUE; // update rear index in circular manner
+    pthread_cond_signal(&queue_cond);          // announce for thread is waiting
+    pthread_mutex_unlock(&queue_mutex);        // unlock           
 }
 
-int main() {
-    // Kết nối Redis
-    redisContext *redis = redisConnect("127.0.0.1", 6379);
-    if (redis == NULL || redis->err) {
-        printf("Redis connection error\n");
-        return 1;
+//=====================================================================================================
+// ===== Function: take packet out of queue ===========================================================
+RequestPacket take_queue() 
+{
+    pthread_mutex_lock(&queue_mutex);              
+    while (queue_front == queue_rear) // if queue is empty
+    {             
+        pthread_cond_wait(&queue_cond, &queue_mutex);  // waiting for new packet 
     }
-    printf("Connected to Redis successfully\n");
+    RequestPacket next_packet = request_queue[queue_front]; // take request to process
+    queue_front = (queue_front + 1) % MAX_QUEUE;    
+    pthread_mutex_unlock(&queue_mutex);             // unlock
+    
+    return next_packet;                                     
+}
 
-    // Kết nối SQLite
-    sqlite3 *db;
-    if (sqlite3_open("modbus_mapping.db", &db)) {
-        fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
-        return 1;
-    }
-    printf("Connected to SQLite database successfully\n");
+//========================================================================================================
+// ===== thread 1: receive request packet from Cloud =====================================================
+void *tcp_receiver_thread(void *arg) 
+{
+    int listenfd = socket(AF_INET, SOCK_STREAM, 0);              // -----------------------------------
+    struct sockaddr_in addr = {0};                               // Cấu trúc địa chỉ server
+    addr.sin_family = AF_INET;                                   // AF_INET -> IPv4
+    addr.sin_port = htons(PORT);                                 // declare tcp port
+    addr.sin_addr.s_addr = INADDR_ANY;                           // accept connection from any IP address
+    bind(listenfd, (struct sockaddr *)&addr, sizeof(addr));      // 
+    listen(listenfd, 5);                                         // listen max 5 connections
+    printf("[TCP] Listening on port %d...\n", PORT);             // ------------------------------------
 
-    // Tạo socket TCP server
-    int listenfd = socket(AF_INET, SOCK_STREAM, 0);
-    struct sockaddr_in addr = {0};
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(PORT);
-    addr.sin_addr.s_addr = INADDR_ANY;
-
-    bind(listenfd, (struct sockaddr *)&addr, sizeof(addr));
-    listen(listenfd, 5);
-
-    fd_set master, readfds;
-    FD_ZERO(&master);
-    FD_SET(listenfd, &master);
-    int fdmax = listenfd;
-
-    printf("TCP Server listening on port %d...\n", PORT);
-
-    while (1) {
-        readfds = master;
-        if (select(fdmax + 1, &readfds, NULL, NULL, NULL) < 0) continue;
-
-        for (int i = 0; i <= fdmax; ++i) {
-            if (FD_ISSET(i, &readfds)) {
-                if (i == listenfd) {
-                    int newfd = accept(listenfd, NULL, NULL);
-                    if (newfd >= 0) {
-                        FD_SET(newfd, &master);
-                        if (newfd > fdmax) fdmax = newfd;
-                    }
-                } else {
-                    handle_tcp_client(i, redis, db);
-                    close(i);
-                    FD_CLR(i, &master);
-                }
+    while (1) 
+    {
+        int client_sock = accept(listenfd, NULL, NULL);          
+        if (client_sock >= 0) 
+        {
+            uint16_t buffer[260];                                  // data buffer
+            int bytes = recv(client_sock, buffer, sizeof(buffer), 0);  // receice data packet from Cloud
+            if (bytes >= 12) 
+            {                                   
+                printf("[TCP] Received packet from Cloud\n");
+                RequestPacket next_packet;                              
+                next_packet.transaction_id = buffer[0];
+                next_packet.rtu_id         = buffer[1];
+                next_packet.address        = buffer[2];
+                next_packet.function       = buffer[3];
+                next_packet.quantity       = buffer[4];
+                next_packet.client_sock    = client_sock;                   
+                add_queue(next_packet);                            
+            } 
+            else 
+            {
+                printf("[TCP] Invalid packet\n");
+                close(client_sock);                              
             }
         }
     }
-
-    // Giải phóng tài nguyên
-    sqlite3_close(db);
-    redisFree(redis);
-    return 0;
+    return NULL;
 }
 
+//================================================================================================================================
+// ===== thread 2: processing data and mapping address with SQite and send request for rtu server ====================================================
+void *process_request_thread(void *arg) 
+{
+    sqlite3 *db;
+    sqlite3_open("mapping.db", &db);           // connect to SQLite database mapping.db                 
+    redisContext *redis = redisConnect("127.0.0.1", 6379);      // connect with Redis 
+
+    while (1) 
+    {
+        RequestPacket packet = take_queue();                   // take next packet from queue
+        printf("[PROCESS] Handling transaction ID: %d\n", packet.transaction_id);
+        printf("[DB] Lookup for address %d\n", packet.address);    // mapping address
+
+        // send request to Redis server
+        char json_packet[256];
+        snprintf(json_packet, sizeof(json_packet),
+                 "{\"transaction_id\":%d,\"rtu_id\":%d,\"rtu_address\":%d,\"function\":%d,\"quantity\":%d}",
+                 packet.transaction_id, 
+                 packet.rtu_id, 
+                 packet.address, 
+                 packet.function, 
+                 packet.quantity);
+        redisCommand(redis, "PUBLISH modbus_request %s", json_packet); // send request to Redis channel - modbus_request
+
+        pthread_mutex_lock(&pending_mutex);                      // save socket, is waiting for response from RTU server
+        pending_responses[pending_count].transaction_id = packet.transaction_id;
+        pending_responses[pending_count].client_sock    = packet.client_sock;
+        pending_count++;
+        pthread_mutex_unlock(&pending_mutex);
+    }
+
+    redisFree(redis);  // clean up Redis connection
+    sqlite3_close(db);
+
+    return NULL;
+}
+
+//========================================================================================================
+// ===== thread 3: listen response form Redis and send for TCP client ====================================
+void *response_listener_thread(void *arg) 
+{
+    redisContext *redis = redisConnect("127.0.0.1", 6379);                // connect to Redis
+    redisReply   *reply = redisCommand(redis, "SUBSCRIBE modbus_response"); 
+    if (reply) // wait for response from Redis channel - modbus_response
+    {
+        freeReplyObject(reply);
+        printf("[REDIS] Listening for responses...\n");
+    } 
+
+    while (1) 
+    {
+        redisReply *message_reply; // declare a msg pointer of type redisReply (data type of hiredis library) to contain the response received from Redis.
+        if (redisGetReply(redis, (void **) & message_reply) == REDIS_OK && message_reply) 
+        { 
+
+            //-------------------------------------------------------------------------------------------------
+            //                     JSON data format:
+            //                        "message"                    -> element[0] - type of message,
+            //                    "modbus_response"                -> element[1] - channel name,
+            // "{\"transaction_id\":1,\"status\":0,\"value\":123}" -> element[2] - main 
+            //-------------------------------------------------------------------------------------------------
+
+            if (message_reply -> type == REDIS_REPLY_ARRAY && message_reply -> elements == 3) 
+            {
+                const char *json_str = message_reply -> element[2] -> str;
+                json_error_t error;
+                json_t *root = json_loads(json_str, 0, &error);   // Parse JSON 
+                if (!root) 
+                {
+                    fprintf(stderr, "JSON parse error: %s\n", error.text);
+                    freeReplyObject(message_reply);
+                    continue;
+                }
+
+                int transaction_id = json_integer_value(json_object_get(root, "transaction_id"));
+                int status = json_integer_value(json_object_get(root, "status"));
+                int value = json_integer_value(json_object_get(root, "value"));
+
+                pthread_mutex_lock(&pending_mutex);               // Tìm socket chờ tương ứng
+                int found = 0;
+                for (int i = 0; i < pending_count; ++i) 
+                {
+                    if (pending_responses[i].transaction_id == transaction_id) 
+                    {
+                        int client_sock = pending_responses[i].client_sock;
+                        uint8_t response[6] = {transaction_id, status, value, 0, 0, 0};
+                        send(client_sock, response, 6, 0);       // Gửi phản hồi lại cho Cloud
+                        close(client_sock);                      // Đóng socket sau khi gửi
+
+                        for (int j = i; j < (pending_count - 1); j++)
+                        {
+                            pending_responses[j] = pending_responses[j + 1];
+                        }       
+                        pending_count--;
+                        found = 1;
+
+                        break;
+                    }
+                }
+                pthread_mutex_unlock(&pending_mutex);
+                if (!found) 
+                {
+                    printf("[REDIS] Unknown transaction_id: %d\n", transaction_id);
+                }
+                json_decref(root);
+            }
+            freeReplyObject(message_reply);
+        }
+    }
+    redisFree(redis);
+    return NULL;
+}
+
+//========================================================================================================
+// ===== main: create and run tasks ======================================================================
+int main() 
+{
+    pthread_t receive_thread, process_thread, response_thread;
+
+    pthread_create(&receive_thread, NULL, tcp_receiver_thread, NULL);    
+    pthread_create(&process_thread, NULL, process_request_thread, NULL);
+    pthread_create(&response_thread, NULL, response_listener_thread, NULL); 
+
+    pthread_join(receive_thread, NULL);
+    pthread_join(process_thread, NULL);
+    pthread_join(response_thread, NULL);
+
+    return 0;
+}

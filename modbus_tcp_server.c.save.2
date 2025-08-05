@@ -1,0 +1,201 @@
+// tcp_server.c - Khung cơ bản giao tiếp nhiều luồng
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <pthread.h>
+#include <sqlite3.h>
+#include <hiredis/hiredis.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <jansson.h> // Thư viện xử lý JSON
+
+#define PORT 1502            // Cổng TCP server lắng nghe
+#define MAX_QUEUE 100        // Số lượng tối đa gói tin trong hàng đợi
+
+// ===== Cấu trúc gói tin giao tiếp giữa các luồng =====
+typedef struct {
+    int transaction_id;     // ID của giao dịch để theo dõi
+    int rtu_id;             // ID thiết bị RTU đích
+    int address;            // Địa chỉ thanh ghi cần đọc/ghi
+    int function;           // Hàm Modbus (1, 3, 4...)
+    int quantity;           // Số lượng thanh ghi
+    int client_sock;        // Socket để trả lại kết quả cho client TCP
+} 
+request_cloud;
+
+// ===== Hàng đợi đơn giản để chia sẻ giữa các thread =====
+request_cloud request_queue[MAX_QUEUE];     // Mảng hàng đợi vòng
+int queue_front = 0; 
+int queue_rear = 0;         // Chỉ số đầu/cuối hàng đợi
+pthread_mutex_t queue_mutex = PTHREAD_MUTEX_INITIALIZER;  // Khoá bảo vệ hàng đợi
+pthread_cond_t queue_cond = PTHREAD_COND_INITIALIZER;     // Điều kiện cho thread chờ hàng đợi
+
+// ===== Bảng ánh xạ transaction ID -> client_sock =====
+typedef struct 
+{
+    int transaction_id;      // transaction ID của gói gửi đi
+    int client_sock;         // socket tương ứng để phản hồi
+} 
+
+TransactionMap;
+TransactionMap pending_responses[100];       // Mảng lưu phản hồi đang chờ xử lý
+int pending_count = 0;                       // Số lượng phản hồi đang chờ
+pthread_mutex_t pending_mutex = PTHREAD_MUTEX_INITIALIZER;  // Mutex bảo vệ mảng trên
+
+// ===== Hàm thêm gói tin vào hàng đợi =====
+void enqueue_request(RequestPacket pkt) 
+{
+    pthread_mutex_lock(&queue_mutex);               // Khoá trước khi ghi vào hàng đợi
+    request_queue[queue_rear] = pkt;                // Ghi gói tin vào vị trí rear
+    queue_rear = (queue_rear + 1) % MAX_QUEUE;      // Cập nhật rear dạng vòng
+    pthread_cond_signal(&queue_cond);               // Báo cho thread đang chờ
+    pthread_mutex_unlock(&queue_mutex);             // Mở khoá
+}
+
+// ===== Hàm lấy gói tin ra khỏi hàng đợi =====
+RequestPacket dequeue_request() {
+    pthread_mutex_lock(&queue_mutex);               // Khoá trước khi đọc
+    while (queue_front == queue_rear) {             // Nếu hàng đợi rỗng
+        pthread_cond_wait(&queue_cond, &queue_mutex);  // Chờ đến khi có dữ liệu
+    }
+    RequestPacket pkt = request_queue[queue_front]; // Lấy gói đầu hàng đợi
+    queue_front = (queue_front + 1) % MAX_QUEUE;    // Cập nhật front dạng vòng
+    pthread_mutex_unlock(&queue_mutex);             // Mở khoá
+    return pkt;                                     // Trả về gói tin
+}
+
+// ===== Luồng 1: Nhận gói tin từ Cloud qua TCP =====
+void *tcp_receiver_thread(void *arg) {
+    int listenfd = socket(AF_INET, SOCK_STREAM, 0);              // Tạo socket TCP
+    struct sockaddr_in addr = {0};                               // Cấu trúc địa chỉ server
+    addr.sin_family = AF_INET;                                   // IPv4
+    addr.sin_port = htons(PORT);                                 // Gán cổng
+    addr.sin_addr.s_addr = INADDR_ANY;                           // Lắng nghe tất cả IP
+    bind(listenfd, (struct sockaddr *)&addr, sizeof(addr));      // Gán địa chỉ cho socket
+    listen(listenfd, 5);                                         // Lắng nghe kết nối
+    printf("[TCP] Listening on port %d...\n", PORT);
+
+    while (1) {
+        int client_sock = accept(listenfd, NULL, NULL);          // Chấp nhận kết nối mới
+        if (client_sock >= 0) {
+            uint8_t buffer[260];                                 // Buffer đọc dữ liệu TCP
+            int bytes = recv(client_sock, buffer, sizeof(buffer), 0);  // Nhận dữ liệu từ client
+            if (bytes >= 12) {                                   // Gói tin phải đủ độ dài
+                printf("[TCP] Received packet from Cloud\n");
+                RequestPacket pkt;                               // Tạo gói tin từ TCP client
+                pkt.transaction_id = buffer[0];
+                pkt.rtu_id = buffer[1];
+                pkt.address = buffer[2];
+                pkt.function = buffer[3];
+                pkt.quantity = buffer[4];
+                pkt.client_sock = client_sock;                   // Lưu socket để phản hồi
+                enqueue_request(pkt);                            // Đưa vào hàng đợi
+            } else {
+                printf("[TCP] Invalid packet\n");
+                close(client_sock);                              // Đóng socket nếu lỗi
+            }
+        }
+    }
+    return NULL;
+}
+
+// ===== Luồng 2: Tra DB và gửi sang RTU server (qua Redis) =====
+void *process_request_thread(void *arg) {
+    sqlite3 *db;
+    sqlite3_open("mapping.db", &db);                            // Mở SQLite DB
+    redisContext *redis = redisConnect("127.0.0.1", 6379);      // Kết nối Redis
+
+    while (1) {
+        RequestPacket pkt = dequeue_request();                   // Lấy gói tin từ hàng đợi
+        printf("[PROCESS] Handling transaction ID: %d\n", pkt.transaction_id);
+
+        printf("[DB] Lookup for address %d\n", pkt.address);    // (Giả lập) Tra ánh xạ từ DB
+
+        // Gửi JSON gói tin lên Redis channel
+        char json_cmd[256];
+        snprintf(json_cmd, sizeof(json_cmd),
+                 "{\"transaction_id\":%d,\"rtu_id\":%d,\"rtu_address\":%d,\"function\":%d,\"quantity\":%d}",
+                 pkt.transaction_id, pkt.rtu_id, pkt.address, pkt.function, pkt.quantity);
+        redisCommand(redis, "PUBLISH modbus_request %s", json_cmd);
+
+        pthread_mutex_lock(&pending_mutex);                      // Lưu socket đang chờ phản hồi
+        pending_responses[pending_count].transaction_id = pkt.transaction_id;
+        pending_responses[pending_count].client_sock = pkt.client_sock;
+        pending_count++;
+        pthread_mutex_unlock(&pending_mutex);
+    }
+    redisFree(redis);
+    sqlite3_close(db);
+    return NULL;
+}
+
+// ===== Luồng 3: Lắng nghe phản hồi từ Redis và gửi về TCP client =====
+void *response_listener_thread(void *arg) {
+    redisContext *redis = redisConnect("127.0.0.1", 6379);       // Kết nối Redis
+    redisReply *reply = redisCommand(redis, "SUBSCRIBE modbus_response");
+    if (reply) freeReplyObject(reply);
+    printf("[REDIS] Listening for responses...\n");
+
+    while (1) {
+        redisReply *msg;
+        if (redisGetReply(redis, (void **)&msg) == REDIS_OK && msg) {
+            if (msg->type == REDIS_REPLY_ARRAY && msg->elements == 3) {
+                const char *json_str = msg->element[2]->str;
+
+                json_error_t error;
+                json_t *root = json_loads(json_str, 0, &error);   // Parse JSON từ chuỗi
+                if (!root) {
+                    fprintf(stderr, "❌ JSON parse error: %s\n", error.text);
+                    freeReplyObject(msg);
+                    continue;
+                }
+
+                int transaction_id = json_integer_value(json_object_get(root, "transaction_id"));
+                int status = json_integer_value(json_object_get(root, "status"));
+                int value = json_integer_value(json_object_get(root, "value"));
+
+                pthread_mutex_lock(&pending_mutex);               // Tìm socket chờ tương ứng
+                int found = 0;
+                for (int i = 0; i < pending_count; ++i) {
+                    if (pending_responses[i].transaction_id == transaction_id) {
+                        int client_sock = pending_responses[i].client_sock;
+                        uint8_t response[6] = {transaction_id, status, value, 0, 0, 0};
+                        send(client_sock, response, 6, 0);       // Gửi phản hồi lại cho Cloud
+                        close(client_sock);                      // Đóng socket sau khi gửi
+
+                        for (int j = i; j < pending_count - 1; j++)
+                            pending_responses[j] = pending_responses[j + 1];
+                        pending_count--;
+                        found = 1;
+                        break;
+                    }
+                }
+                pthread_mutex_unlock(&pending_mutex);
+                if (!found) {
+                    printf("[REDIS] Unknown transaction_id: %d\n", transaction_id);
+                }
+                json_decref(root);
+            }
+            freeReplyObject(msg);
+        }
+    }
+    redisFree(redis);
+    return NULL;
+}
+
+// ===== Hàm chính: Tạo các thread và khởi chạy =====
+int main() {
+    pthread_t recv_thread, proc_thread, resp_thread;
+    pthread_create(&recv_thread, NULL, tcp_receiver_thread, NULL);    // Thread nhận TCP
+    pthread_create(&proc_thread, NULL, process_request_thread, NULL); // Thread xử lý DB + Redis
+    pthread_create(&resp_thread, NULL, response_listener_thread, NULL); // Thread phản hồi
+
+    pthread_join(recv_thread, NULL);
+    pthread_join(proc_thread, NULL);
+    pthread_join(resp_thread, NULL);
+    return 0;
+}
+
