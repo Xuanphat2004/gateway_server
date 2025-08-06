@@ -13,6 +13,8 @@
 #define PORT 1502            // TCP port for Cloud connection
 #define BUFFER_SIZE 256      // Buffer size for TCP packets
 #define MAX_QUEUE 100        // number of requests in queue
+int lookup_mapped_address(sqlite3 *db, int rtu_id, int original_address);
+
 
 //====================================================================================================
 // ======== declare queue for request packets - FIFO structure =======================================
@@ -31,7 +33,7 @@ RequestPacket request_queue[MAX_QUEUE];
 int queue_front = 0; // head index
 int queue_rear  = 0;  // final index
 pthread_mutex_t queue_mutex = PTHREAD_MUTEX_INITIALIZER;  // declare mutex for queue access
-pthread_cond_t  queue_cond  = PTHREAD_COND_INITIALIZER;     
+pthread_cond_t  queue_cond  = PTHREAD_COND_INITIALIZER;   // declare wake up variable
 
 //=====================================================================================================
 // ======= array contain RTU feedback for TCP server ==================================================
@@ -102,7 +104,8 @@ void *tcp_receiver_thread(void *arg)
                 next_packet.address        = buffer[2];
                 next_packet.function       = buffer[3];
                 next_packet.quantity       = buffer[4];
-                next_packet.client_sock    = client_sock;                   
+                next_packet.client_sock    = client_sock; 
+                printf(" ");                  
                 add_queue(next_packet);                            
             } 
             else 
@@ -127,7 +130,8 @@ void *process_request_thread(void *arg)
     {
         RequestPacket packet = take_queue();                   // take next packet from queue
         printf("[PROCESS] Handling transaction ID: %d\n", packet.transaction_id);
-        printf("[DB] Lookup for address %d\n", packet.address);    // mapping address
+        // printf("[DB] Lookup for address %d\n", packet.address);    // mapping address
+        int new_address = lookup_mapped_address(db, packet.rtu_id, packet.address);
 
         // send request to Redis server
         char json_packet[256];
@@ -135,7 +139,7 @@ void *process_request_thread(void *arg)
                  "{\"transaction_id\":%d,\"rtu_id\":%d,\"rtu_address\":%d,\"function\":%d,\"quantity\":%d}",
                  packet.transaction_id, 
                  packet.rtu_id, 
-                 packet.address, 
+                 new_address, 
                  packet.function, 
                  packet.quantity);
         redisCommand(redis, "PUBLISH modbus_request %s", json_packet); // send request to Redis channel - modbus_request
@@ -227,6 +231,40 @@ void *response_listener_thread(void *arg)
     }
     redisFree(redis);
     return NULL;
+}
+
+//==============================================================================================
+// ==== Hàm tra bảng ánh xạ địa chỉ từ SQLite =================================================
+int lookup_mapped_address(sqlite3 *db, int rtu_id, int original_address)
+{
+    int new_address = original_address;  // Mặc định nếu không có ánh xạ thì dùng nguyên gốc
+
+    const char *sql = "SELECT new_address FROM mapping WHERE rtu_id = ? AND address = ?";
+    sqlite3_stmt *stmt;
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) == SQLITE_OK) 
+    {
+        sqlite3_bind_int(stmt, 1, rtu_id);
+        sqlite3_bind_int(stmt, 2, original_address);
+
+        if (sqlite3_step(stmt) == SQLITE_ROW) 
+        {
+            new_address = sqlite3_column_int(stmt, 0);
+            printf("[DB] Found mapping: %d -> %d\n", original_address, new_address);
+        } 
+        else 
+        {
+            printf("[DB] No mapping found for address %d\n", original_address);
+        }
+
+        sqlite3_finalize(stmt);
+    } 
+    else 
+    {
+        printf("[DB] Failed to prepare SQL statement\n");
+    }
+
+    return new_address;
 }
 
 //========================================================================================================
