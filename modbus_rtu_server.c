@@ -85,7 +85,8 @@ ResponsePacket take_response()
     return pkt;
 }
 
-//======================== Thread 1: Nhận gói lệnh từ Redis -> queue_request =======================
+//====================================================================================================
+//======================== Thread 1: receive packet from TCP Server ==================================
 void *ReceiverThread(void *arg) 
 {
     redisContext *redis = redisConnect("127.0.0.1", 6379);
@@ -126,21 +127,22 @@ void *ReceiverThread(void *arg)
     return NULL;
 }
 
-//========================= Thread 2: Gửi lệnh Modbus xuống SmartLogger ===========================
+//====================================================================================================
+//========================= Thread 2: send command for SmartLogger ===================================
 void *SenderThread(void *arg) 
 {
-    modbus_t *ctx = modbus_new_tcp("192.168.1.10", 502); // IP SmartLogger
+    modbus_t *ctx = modbus_new_tcp("192.168.1.10", 1502); // IP SmartLogger
     if (!ctx || modbus_connect(ctx) == -1) 
     {
-        fprintf(stderr, "[SENDER] Modbus connection failed\n");
+        fprintf(stderr, "[RTU Server connect Modbus] Modbus connection failed !!!\n");
         return NULL;
     }
-    printf("[SENDER] Connected to SmartLogger\n");
+    printf("[RTU Server connect Modbus] Connected to device modbus RTU\n");
 
     while (1) 
     {
         RequestPacket req = take_request();
-        printf("[SENDER] Processing transaction_id %d\n", req.transaction_id);
+        printf("[RTU Server process] Processing transaction_id %d\n", req.transaction_id);
 
         int rc = -1;
         uint16_t value[req.quantity];
@@ -154,7 +156,7 @@ void *SenderThread(void *arg)
         } 
         else
         {
-            printf("[SENDER] Unsupported function: %d\n", req.function);
+            printf("[RTU Server process] Unsupported function: %d\n", req.function);
             rc = -1;
         }
 
@@ -164,12 +166,12 @@ void *SenderThread(void *arg)
         {
             resp.status = 0; // OK
             resp.value = value[0];
-            printf("[SENDER] transaction_id %d success, value %d\n", resp.transaction_id, resp.value);
+            printf("[RTU Server] transaction_id %d success, value %d\n", resp.transaction_id, resp.value);
         } else 
         {
             resp.status = 1; // ERROR
             resp.value = 0;
-            printf("[SENDER] transaction_id %d failed\n", resp.transaction_id);
+            printf("[RTU Server] transaction_id %d failed\n", resp.transaction_id);
         }
         add_response(resp);
     }
@@ -195,7 +197,7 @@ void *ResponseThread(void *arg)
         char *json_str = json_dumps(root, 0);
 
         redisCommand(redis, "PUBLISH modbus_response %s", json_str);
-        printf("[RESPONSE] Sent transaction_id %d with status %d and value %d\n", resp.transaction_id, resp.status, resp.value);
+        printf("[RTU Server send response] Sent transaction_id %d with status %d and value %d\n", resp.transaction_id, resp.status, resp.value);
 
         free(json_str);
         json_decref(root);

@@ -239,7 +239,7 @@ int lookup_mapped_address(sqlite3 *db, int rtu_id, int original_address)
 {
     int new_address = original_address;  // Mặc định nếu không có ánh xạ thì dùng nguyên gốc
 
-    const char *sql = "SELECT new_address FROM mapping WHERE rtu_id = ? AND address = ?";
+    const char *sql = "SELECT tcp_address FROM mapping WHERE rtu_id = ? AND address = ?";
     sqlite3_stmt *stmt;
 
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) == SQLITE_OK) 
@@ -263,7 +263,6 @@ int lookup_mapped_address(sqlite3 *db, int rtu_id, int original_address)
     {
         printf("[DB] Failed to prepare SQL statement\n");
     }
-
     return new_address;
 }
 
