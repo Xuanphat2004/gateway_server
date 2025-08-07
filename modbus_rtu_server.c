@@ -8,11 +8,18 @@
 #include <modbus/modbus.h>
 
 #define MAX_QUEUE 100
+#define DEVICE_ADDRESS "127.0.0.1"
+#define PORT_DEVICE 1502
+#define BUFFER_SIZE 256
 
-//========================= Queue Request: Lưu các gói cần gửi đi =================================
+
+//=============================================================================================================================
+//========================= structure for request packet receive from TCP server ==============================================
 typedef struct 
 {
     int transaction_id;
+    int protocol_id;
+    int lenth;
     int rtu_id;
     int address;
     int function;
@@ -21,33 +28,50 @@ typedef struct
 RequestPacket;
 
 RequestPacket request_queue[MAX_QUEUE];
-int queue_front = 0, queue_rear = 0;
+
+int queue_front = 0; 
+int queue_rear = 0;
 pthread_mutex_t queue_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 pthread_cond_t queue_cond = PTHREAD_COND_INITIALIZER;
 
-void add_request(RequestPacket pkt) {
+
+//====================================================================================================
+//========================= Function: add request to queue ==========================================
+void add_request(RequestPacket add_req) 
+{
     pthread_mutex_lock(&queue_mutex);
-    request_queue[queue_rear] = pkt;
+
+    request_queue[queue_rear] = add_req;
     queue_rear = (queue_rear + 1) % MAX_QUEUE;
+
     pthread_cond_signal(&queue_cond);
+
     pthread_mutex_unlock(&queue_mutex);
 }
 
+
+//====================================================================================================
+//========================= Function: take request from queue ========================================
 RequestPacket take_request() 
 {
     pthread_mutex_lock(&queue_mutex);
+
     while (queue_front == queue_rear)
     {
         pthread_cond_wait(&queue_cond, &queue_mutex);
     }
-    RequestPacket pkt = request_queue[queue_front];
+    RequestPacket take_request = request_queue[queue_front];
     queue_front = (queue_front + 1) % MAX_QUEUE;
+
     pthread_mutex_unlock(&queue_mutex);
 
-    return pkt;
+    return take_request;
 }
 
-//========================= Queue Response: Lưu phản hồi từ SmartLogger để gửi lại =================
+
+//======================================================================================================
+//========================= structure packet save response from Modbus device ===========================
 typedef struct 
 {
     int transaction_id;
@@ -57,45 +81,75 @@ typedef struct
 ResponsePacket;
 
 ResponsePacket response_queue[MAX_QUEUE];
-int resp_front = 0, resp_rear = 0;
+
+int resp_front = 0;
+int resp_rear = 0;
+
 pthread_mutex_t resp_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 pthread_cond_t resp_cond = PTHREAD_COND_INITIALIZER;
 
-void add_response(ResponsePacket pkt) 
+
+//====================================================================================================
+//========================= Function: add response to queue ==========================================
+void add_response(ResponsePacket add_res) 
 {
     pthread_mutex_lock(&resp_mutex);
-    response_queue[resp_rear] = pkt;
+
+    response_queue[resp_rear] = add_res;
     resp_rear = (resp_rear + 1) % MAX_QUEUE;
+
     pthread_cond_signal(&resp_cond);
+
     pthread_mutex_unlock(&resp_mutex);
 }
 
+
+//====================================================================================================
+//========================= Function: take response from queue ========================================
 ResponsePacket take_response() 
 {
     pthread_mutex_lock(&resp_mutex);
+
     while (resp_front == resp_rear)
     {
         pthread_cond_wait(&resp_cond, &resp_mutex);
     }
-        
-    ResponsePacket pkt = response_queue[resp_front];
+    ResponsePacket take_res = response_queue[resp_front];
     resp_front = (resp_front + 1) % MAX_QUEUE;
+
     pthread_mutex_unlock(&resp_mutex);
 
-    return pkt;
+    return take_res;
 }
 
 //====================================================================================================
 //======================== Thread 1: receive packet from TCP Server ==================================
-void *ReceiverThread(void *arg) 
+void *receive_request_thread(void *arg) 
 {
     redisContext *redis = redisConnect("127.0.0.1", 6379);
     redisReply *reply = redisCommand(redis, "SUBSCRIBE modbus_request");
+
+    if (redis == NULL || redis->err) 
+    {
+        fprintf(stderr, "[RTU Server connect Redis] Connection error: %s\n", redis->errstr);
+        return NULL;
+    }
+    else 
+    {
+        printf("[RTU Server connect Redis] Connected to Redis server\n");
+    }
     freeReplyObject(reply);
-    printf("[REDIS] Subscribed to modbus_request\n");
+    printf("[RTU Server connect Redis] Subscribed to modbus_request\n");
 
     while (1) 
     {
+        //-------------------------------------------------------------------------------------------------
+        //                     JSON data format:
+        //                        "message"                    -> element[0] - type of message,
+        //                    "modbus_response"                -> element[1] - channel name,
+        // "{\"transaction_id\":1,\"status\":0,\"value\":123}" -> element[2] - main 
+        //-------------------------------------------------------------------------------------------------
         redisReply *msg;
         if (redisGetReply(redis, (void **)&msg) == REDIS_OK && msg) 
         {
@@ -106,32 +160,35 @@ void *ReceiverThread(void *arg)
                 json_t *root = json_loads(json_str, 0, &error);
                 if (!root) 
                 {
-                    fprintf(stderr, "[RECEIVER] JSON parse error: %s\n", error.text);
+                    fprintf(stderr, "[RTU Server receive request] JSON parse error: %s\n", error.text);
                     freeReplyObject(msg);
                     continue;
                 }
                 RequestPacket req;
+
                 req.transaction_id = json_integer_value(json_object_get(root, "transaction_id"));
-                req.rtu_id = json_integer_value(json_object_get(root, "rtu_id"));
-                req.address = json_integer_value(json_object_get(root, "rtu_address"));
-                req.function = json_integer_value(json_object_get(root, "function"));
-                req.quantity = json_integer_value(json_object_get(root, "quantity"));
+                req.rtu_id         = json_integer_value(json_object_get(root, "rtu_id"));
+                req.address        = json_integer_value(json_object_get(root, "rtu_address"));
+                req.function       = json_integer_value(json_object_get(root, "function"));
+                req.quantity       = json_integer_value(json_object_get(root, "quantity"));
                 add_request(req);
-                json_decref(root);
-                printf("[RECEIVER] Received transaction_id %d, added to queue\n", req.transaction_id);
+                json_decref(root); // clean up JSON object
+
+                printf("[RTU Server receive request] Received transaction_id %d, added to queue\n", req.transaction_id);
             }
             freeReplyObject(msg);
         }
     }
     redisFree(redis);
+
     return NULL;
 }
 
 //====================================================================================================
 //========================= Thread 2: send command for SmartLogger ===================================
-void *SenderThread(void *arg) 
+void *send_command_thread(void *arg) 
 {
-    modbus_t *ctx = modbus_new_tcp("192.168.1.10", 1502); // IP SmartLogger
+    modbus_t *ctx = modbus_new_tcp(DEVICE_ADDRESS, PORT_DEVICE); // IP SmartLogger
     if (!ctx || modbus_connect(ctx) == -1) 
     {
         fprintf(stderr, "[RTU Server connect Modbus] Modbus connection failed !!!\n");
@@ -166,7 +223,9 @@ void *SenderThread(void *arg)
         {
             resp.status = 0; // OK
             resp.value = value[0];
-            printf("[RTU Server] transaction_id %d success, value %d\n", resp.transaction_id, resp.value);
+            printf("[RTU Server] transaction_id %d success, value %d\n", 
+                resp.transaction_id, 
+                resp.value);
         } else 
         {
             resp.status = 1; // ERROR
@@ -182,7 +241,7 @@ void *SenderThread(void *arg)
 }
 
 //======================== Thread 3: Gửi phản hồi lên Redis (modbus_response) =====================
-void *ResponseThread(void *arg) 
+void *send_response_thread(void *arg) 
 {
     redisContext *redis = redisConnect("127.0.0.1", 6379);
 
@@ -197,7 +256,10 @@ void *ResponseThread(void *arg)
         char *json_str = json_dumps(root, 0);
 
         redisCommand(redis, "PUBLISH modbus_response %s", json_str);
-        printf("[RTU Server send response] Sent transaction_id %d with status %d and value %d\n", resp.transaction_id, resp.status, resp.value);
+        printf("[RTU Server send response] Sent transaction_id %d with status %d and value %d\n", 
+            resp.transaction_id, 
+            resp.status, 
+            resp.value);
 
         free(json_str);
         json_decref(root);
@@ -206,14 +268,16 @@ void *ResponseThread(void *arg)
     return NULL;
 }
 
-//======================== Main: Tạo 3 thread và chạy vĩnh viễn ====================================
+
+//====================================================================================================
+//======================== Main: create threads and run ==============================================
 int main() 
 {
     pthread_t recv_t, send_t, resp_t;
 
-    pthread_create(&recv_t, NULL, ReceiverThread, NULL);
-    pthread_create(&send_t, NULL, SenderThread, NULL);
-    pthread_create(&resp_t, NULL, ResponseThread, NULL);
+    pthread_create(&recv_t, NULL, receive_request_thread, NULL);
+    pthread_create(&send_t, NULL, send_command_thread, NULL);
+    pthread_create(&resp_t, NULL, send_response_thread, NULL);
 
     pthread_join(recv_t, NULL);
     pthread_join(send_t, NULL);

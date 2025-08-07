@@ -1,19 +1,40 @@
 import socket
 import struct
 
-# Dữ liệu mẫu
-transaction_id = 0x0A
-tcp_id = 0xA
-tcp_address = 0x100
-function = 0x03
-quantity = 0x0A
-dummy = 0xFFFF   # thêm 1 trường 2 byte cho đủ 12 byte
+HOST = '127.0.0.1'
+PORT = 1502
 
-# Đóng gói: 6 số 16-bit (unsigned short), thứ tự big-endian
-packet = struct.pack('!6H', transaction_id, tcp_id, tcp_address, function, quantity, dummy)
+# Dữ liệu Modbus TCP giả lập
+transaction_id = 1
+protocol_id = 0
+length = 6  # Số lượng byte của phần dữ liệu
+rtu_id = 10
+address = 10050
+function = 3
+quantity = 10
 
-# Gửi gói tin
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sock.connect(('127.0.0.1', 1502))
-sock.sendall(packet)
-sock.close()
+
+# Đóng gói thành 6 trường 2 byte (big-endian)
+packet = struct.pack('!7H', transaction_id, protocol_id, length, rtu_id, address, function, quantity)
+
+try:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.connect((HOST, PORT))
+        print("[Client] Kết nối thành công đến server tại {}:{}".format(HOST, PORT))
+
+        s.sendall(packet)
+        print("[Client] Đã gửi gói tin Modbus TCP")
+
+        response = s.recv(1024)
+        print("[Client] Phản hồi từ server (raw):", response)
+
+        # Nếu phản hồi có dữ liệu, hiển thị dạng số nguyên
+        if response:
+            response_values = list(response)
+            print("[Client] Phản hồi (dạng số nguyên):", response_values)
+
+except ConnectionRefusedError:
+    print("[Client] Không thể kết nối tới server tại {}:{}".format(HOST, PORT))
+
+except Exception as e:
+    print("[Client] Lỗi xảy ra:", str(e))  
