@@ -90,3 +90,25 @@
 2025-08-08 11:50:03,635  * Debugger is active!
 2025-08-08 11:50:03,688  * Debugger PIN: 144-644-855
 2025-08-08 11:50:13,239 127.0.0.1 - - [08/Aug/2025 11:50:13] "GET / HTTP/1.1" 200 -
+2025-08-08 14:10:19,805 [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8080
+ * Running on http://192.168.80.128:8080
+2025-08-08 14:10:19,806 [33mPress CTRL+C to quit[0m
+2025-08-08 14:10:19,806  * Restarting with stat
+2025-08-08 14:10:19,921  * Debugger is active!
+2025-08-08 14:10:19,924  * Debugger PIN: 288-503-126
+2025-08-08 14:10:22,598 Added mapping: TCP 41020 -> RTU ID 10, Address 1020
+2025-08-08 14:10:22,598 127.0.0.1 - - [08/Aug/2025 14:10:22] "[32mPOST /add_mapping HTTP/1.1[0m" 302 -
+2025-08-08 14:10:22,608 127.0.0.1 - - [08/Aug/2025 14:10:22] "GET / HTTP/1.1" 200 -
+2025-08-08 14:11:00,131 Added mapping: TCP 41002 -> RTU ID 10, Address 1002
+2025-08-08 14:11:00,132 127.0.0.1 - - [08/Aug/2025 14:11:00] "[32mPOST /add_mapping HTTP/1.1[0m" 302 -
+2025-08-08 14:11:00,135 127.0.0.1 - - [08/Aug/2025 14:11:00] "GET / HTTP/1.1" 200 -
+2025-08-08 14:12:44,030  * Detected change in '/home/xuanphat/App/gateway_server/send_test.py', reloading
+2025-08-08 14:12:44,062  * Restarting with stat
+2025-08-08 14:12:44,204  * Debugger is active!
+2025-08-08 14:12:44,204  * Debugger PIN: 288-503-126
+2025-08-08 14:13:52,479  * Detected change in '/home/xuanphat/App/gateway_server/send_test.py', reloading
+2025-08-08 14:13:52,511  * Restarting with stat
+2025-08-08 14:13:52,676  * Debugger is active!
+2025-08-08 14:13:52,676  * Debugger PIN: 288-503-126

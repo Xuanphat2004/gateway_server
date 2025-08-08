@@ -178,6 +178,7 @@ void *response_listener_thread(void *arg)
     if (reply) // wait for response from Redis channel - modbus_response
     {
         freeReplyObject(reply);
+        
         printf("[TCP Server wait for response] waiting for responses from RTU server ...\n");
     } 
 
@@ -279,6 +280,7 @@ int lookup_mapped_address(sqlite3 *db, int rtu_id, int tcp_address)
 
     return new_address;
 }
+
 
 //========================================================================================================
 // ===== main: create and run tasks ======================================================================

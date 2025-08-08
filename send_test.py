@@ -9,8 +9,8 @@ PORT = 1502
 transaction_id = 1
 protocol_id = 0
 length = 6  # Số lượng byte của phần dữ liệu
-rtu_id = 3
-address = 40100
+rtu_id = 10
+address = 41020
 function = 3
 quantity = 10
 
