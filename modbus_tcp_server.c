@@ -16,7 +16,7 @@
 #define CLOUD_ADDRESS "127.0.0.1" // IP address of Cloud server
 #define BUFFER_SIZE 256      // Buffer size for TCP packets
 #define MAX_QUEUE 100        // number of requests in queue
-int lookup_mapped_address(sqlite3 *db, int rtu_id, int original_address);
+int lookup_mapped_address(sqlite3 *db, int rtu_id, int tcp_address);
 
 
 //====================================================================================================
@@ -99,19 +99,19 @@ void *tcp_receiver_thread(void *arg)
         int client_sock = accept(listenfd, NULL, NULL);          
         if (client_sock >= 0) 
         {
-            uint16_t buffer[260];                                  // data buffer
+            uint8_t buffer[260];                                  // data buffer
             int bytes = recv(client_sock, buffer, sizeof(buffer), 0);  // receice data packet from Cloud
             if (bytes >= 12) 
             {                                   
                 printf("[TCP Server receive packet] Received packet from Cloud\n");
                 RequestPacket next_packet;                              
-                next_packet.transaction_id = buffer[0];
-                next_packet.protocol_id    = buffer[1];
-                next_packet.length         = buffer[2];
-                next_packet.rtu_id         = buffer[1];
-                next_packet.address        = buffer[2];
-                next_packet.function       = buffer[3];
-                next_packet.quantity       = buffer[4];
+                next_packet.transaction_id = (buffer[0] << 8) | buffer[1];
+                next_packet.protocol_id    = (buffer[2] << 8) | buffer[3];
+                next_packet.length         = (buffer[4] << 8) | buffer[5];
+                next_packet.rtu_id         = (buffer[6] << 8) | buffer[7];
+                next_packet.address        = (buffer[8] << 8) | buffer[9];
+                next_packet.function       = (buffer[10] << 8)| buffer[11];
+                next_packet.quantity       = (buffer[12] << 8)| buffer[13];
                 next_packet.client_sock    = client_sock; 
                 printf(" ");                  
                 add_queue(next_packet);                            
@@ -178,7 +178,7 @@ void *response_listener_thread(void *arg)
     if (reply) // wait for response from Redis channel - modbus_response
     {
         freeReplyObject(reply);
-        printf("[TCP Server wait for response] Listening for responses...\n");
+        printf("[TCP Server wait for response] waiting for responses from RTU server ...\n");
     } 
 
     while (1) 
@@ -218,8 +218,8 @@ void *response_listener_thread(void *arg)
                     {
                         int client_sock = pending_responses[i].client_sock;
                         uint8_t response[6] = {transaction_id, status, value, 0, 0, 0};
-                        send(client_sock, response, 6, 0);       // Gửi phản hồi lại cho Cloud
-                        close(client_sock);                      // Đóng socket sau khi gửi
+                        send(client_sock, response, 6, 0);       // feedback response to Cloud server
+                        close(client_sock);                      // close client socket
 
                         for (int j = i; j < (pending_count - 1); j++)
                         {
@@ -247,12 +247,12 @@ void *response_listener_thread(void *arg)
 
 
 //==============================================================================================
-// ==== Hàm tra bảng ánh xạ địa chỉ từ SQLite =================================================
+// ==== Function: mapping address in SQLite =================================================
 int lookup_mapped_address(sqlite3 *db, int rtu_id, int tcp_address)
 {
     int new_address = tcp_address;  
 
-    const char *sql = "SELECT rtu_address FROM mapping WHERE rtu_id = ? AND address = ?";
+    const char *sql = "SELECT rtu_address FROM mapping WHERE rtu_id = ? AND tcp_address = ?";
     sqlite3_stmt *stmt;
 
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) == SQLITE_OK) 

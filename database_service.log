@@ -68,3 +68,25 @@
 2025-07-31 03:49:56,674 192.168.1.7 - - [31/Jul/2025 03:49:56] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
 2025-08-06 18:53:54,441  * Debugger is active!
 2025-08-06 18:53:54,441  * Debugger PIN: 746-157-081
+2025-08-07 18:10:57,536 [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8080
+ * Running on http://192.168.80.128:8080
+2025-08-07 18:10:57,537 [33mPress CTRL+C to quit[0m
+2025-08-07 18:10:57,539  * Restarting with stat
+2025-08-07 18:10:57,706  * Debugger is active!
+2025-08-07 18:10:57,854  * Debugger PIN: 474-477-071
+2025-08-07 18:11:18,562 127.0.0.1 - - [07/Aug/2025 18:11:18] "GET / HTTP/1.1" 200 -
+2025-08-07 18:12:54,259  * Detected change in '/home/xuanphat/App/gateway_server/send_packet_test.py', reloading
+2025-08-07 18:12:54,296  * Restarting with stat
+2025-08-07 18:12:54,460  * Debugger is active!
+2025-08-07 18:12:54,461  * Debugger PIN: 474-477-071
+2025-08-08 11:50:03,521 [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8080
+ * Running on http://192.168.80.128:8080
+2025-08-08 11:50:03,522 [33mPress CTRL+C to quit[0m
+2025-08-08 11:50:03,525  * Restarting with stat
+2025-08-08 11:50:03,635  * Debugger is active!
+2025-08-08 11:50:03,688  * Debugger PIN: 144-644-855
+2025-08-08 11:50:13,239 127.0.0.1 - - [08/Aug/2025 11:50:13] "GET / HTTP/1.1" 200 -
