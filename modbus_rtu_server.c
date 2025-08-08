@@ -208,7 +208,7 @@ void *receive_request_thread(void *arg)
                 modbus_close(ctx);
                 modbus_free(ctx);
             }
-            ctx = modbus_new_rtu(SERIAL_PORT, SERIAL_PORT, PARITY, DATA_BITS, STOP_BITS); // Cấu hình RTU
+            ctx = modbus_new_rtu(SERIAL_PORT, BAUDRATE, PARITY, DATA_BITS, STOP_BITS); 
             if (!ctx) 
             {
                 fprintf(stderr, "[RTU Server] Failed to create Modbus RTU context\n");
