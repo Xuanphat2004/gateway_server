@@ -12,6 +12,12 @@
 #define PORT_DEVICE 1502
 #define BUFFER_SIZE 256
 
+#define USE_MODBUS  1               // 1 for RTU Modbus, 0 for TCP Modbus
+#define SERIAL_PORT "/dev/ttyUSB0"
+#define BAUDRATE    9600
+#define PARITY      'N'
+#define DATA_BITS   8
+#define STOP_BITS   1
 
 //=============================================================================================================================
 //========================= structure for request packet receive from TCP server ==============================================
@@ -128,7 +134,7 @@ ResponsePacket take_response()
 void *receive_request_thread(void *arg) 
 {
     redisContext *redis = redisConnect("127.0.0.1", 6379);
-    redisReply *reply = redisCommand(redis, "SUBSCRIBE modbus_request");
+    redisReply   *reply = redisCommand(redis, "SUBSCRIBE modbus_request");
 
     if (redis == NULL || redis->err) 
     {
@@ -187,22 +193,36 @@ void *receive_request_thread(void *arg)
 //====================================================================================================
 //========================= Thread 2: send command for SmartLogger ===================================
 void *send_command_thread(void *arg) 
-{
-    modbus_t *ctx = modbus_new_tcp(DEVICE_ADDRESS, PORT_DEVICE); // IP SmartLogger
-    if (!ctx || modbus_connect(ctx) == -1) 
+{ 
+    // Tạo context RTU (đổi lại /dev/ttyUSB0 nếu khác)
+    modbus_t *ctx = modbus_new_rtu(SERIAL_PORT, BAUDRATE, PARITY, DATA_BITS, STOP_BITS);  // port, baud, parity, data bits, stop bits
+
+    if (!ctx) 
     {
-        fprintf(stderr, "[RTU Server connect Modbus] Modbus connection failed !!!\n");
+        fprintf(stderr, "[RTU Server connect Modbus] Failed to create RTU context!\n");
         return NULL;
     }
-    printf("[RTU Server connect Modbus] Connected to device modbus RTU\n");
+
+    if (modbus_connect(ctx) == -1) 
+    {
+        fprintf(stderr, "[RTU Server connect Modbus] Modbus RTU connection failed!\n");
+        modbus_free(ctx);
+        return NULL;
+    }
+
+    printf("[RTU Server connect Modbus] Connected to device via Modbus RTU\n");
 
     while (1) 
     {
         RequestPacket req = take_request();
         printf("[RTU Server process] Processing transaction_id %d\n", req.transaction_id);
 
+        // Chọn slave device ID (rtu_id lấy từ packet)
+        modbus_set_slave(ctx, req.rtu_id);
+
         int rc = -1;
         uint16_t value[req.quantity];
+
         if (req.function == 3) 
         { // Read Holding Register
             rc = modbus_read_registers(ctx, req.address, req.quantity, value);
@@ -211,7 +231,7 @@ void *send_command_thread(void *arg)
         { // Read Input Register
             rc = modbus_read_input_registers(ctx, req.address, req.quantity, value);
         } 
-        else
+        else 
         {
             printf("[RTU Server process] Unsupported function: %d\n", req.function);
             rc = -1;
@@ -219,6 +239,7 @@ void *send_command_thread(void *arg)
 
         ResponsePacket resp;
         resp.transaction_id = req.transaction_id;
+
         if (rc != -1) 
         {
             resp.status = 0; // OK
@@ -226,18 +247,21 @@ void *send_command_thread(void *arg)
             printf("[RTU Server] transaction_id %d success, value %d\n", 
                 resp.transaction_id, 
                 resp.value);
-        } else 
+        } 
+        else 
         {
             resp.status = 1; // ERROR
             resp.value = 0;
             printf("[RTU Server] transaction_id %d failed\n", resp.transaction_id);
         }
+
         add_response(resp);
     }
 
     modbus_close(ctx);
     modbus_free(ctx);
     return NULL;
+
 }
 
 //======================== Thread 3: Gửi phản hồi lên Redis (modbus_response) =====================
