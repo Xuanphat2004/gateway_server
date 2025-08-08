@@ -246,7 +246,6 @@ void *response_listener_thread(void *arg)
     return NULL;
 }
 
-
 //==============================================================================================
 // ==== Function: mapping address in SQLite =================================================
 int lookup_mapped_address(sqlite3 *db, int rtu_id, int tcp_address)

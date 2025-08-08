@@ -6,6 +6,8 @@
 #include <hiredis/hiredis.h>
 #include <jansson.h>
 #include <modbus/modbus.h>
+#include <errno.h>
+
 
 #define MAX_QUEUE 100
 #define DEVICE_ADDRESS "127.0.0.1"
@@ -192,48 +194,61 @@ void *receive_request_thread(void *arg)
 
 //====================================================================================================
 //========================= Thread 2: send command for SmartLogger ===================================
-void *send_command_thread(void *arg) 
-{ 
-    // Tạo context RTU (đổi lại /dev/ttyUSB0 nếu khác)
-    modbus_t *ctx = modbus_new_rtu(SERIAL_PORT, BAUDRATE, PARITY, DATA_BITS, STOP_BITS);  // port, baud, parity, data bits, stop bits
-
-    if (!ctx) 
-    {
-        fprintf(stderr, "[RTU Server connect Modbus] Failed to create RTU context!\n");
-        return NULL;
-    }
-
-    if (modbus_connect(ctx) == -1) 
-    {
-        fprintf(stderr, "[RTU Server connect Modbus] Modbus RTU connection failed!\n");
-        modbus_free(ctx);
-        return NULL;
-    }
-
-    printf("[RTU Server connect Modbus] Connected to device via Modbus RTU\n");
+    void *send_command_thread(void *arg) 
+{
+    modbus_t *ctx = NULL;
+    int connected = 0;
 
     while (1) 
     {
-        RequestPacket req = take_request();
-        printf("[RTU Server process] Processing transaction_id %d\n", req.transaction_id);
+        if (!connected) 
+        {
+            if (ctx != NULL) 
+            {
+                modbus_close(ctx);
+                modbus_free(ctx);
+            }
+            ctx = modbus_new_rtu(SERIAL_PORT, SERIAL_PORT, PARITY, DATA_BITS, STOP_BITS); // Cấu hình RTU
+            if (!ctx) 
+            {
+                fprintf(stderr, "[RTU Server] Failed to create Modbus RTU context\n");
+                sleep(2);
+                continue;
+            }
 
-        // Chọn slave device ID (rtu_id lấy từ packet)
+            if (modbus_connect(ctx) == -1) 
+            {
+                fprintf(stderr, "[RTU Server] Modbus RTU connection failed: %s\n", modbus_strerror(errno));
+                modbus_free(ctx);
+                ctx = NULL;
+                sleep(2);
+                continue;
+            }
+
+            connected = 1;
+            printf("[RTU Server] Connected to Modbus RTU device\n");
+        }
+
+        // Lấy request (chỉ lấy khi đã kết nối)
+        RequestPacket req = take_request();
+
+        // Gán địa chỉ thiết bị
         modbus_set_slave(ctx, req.rtu_id);
 
         int rc = -1;
         uint16_t value[req.quantity];
 
         if (req.function == 3) 
-        { // Read Holding Register
+        {
             rc = modbus_read_registers(ctx, req.address, req.quantity, value);
         } 
         else if (req.function == 4) 
-        { // Read Input Register
+        {
             rc = modbus_read_input_registers(ctx, req.address, req.quantity, value);
         } 
         else 
         {
-            printf("[RTU Server process] Unsupported function: %d\n", req.function);
+            printf("[RTU Server] Unsupported function: %d\n", req.function);
             rc = -1;
         }
 
@@ -242,27 +257,32 @@ void *send_command_thread(void *arg)
 
         if (rc != -1) 
         {
-            resp.status = 0; // OK
+            resp.status = 0;
             resp.value = value[0];
-            printf("[RTU Server] transaction_id %d success, value %d\n", 
-                resp.transaction_id, 
-                resp.value);
+            printf("[RTU Server] transaction_id %d success, value %d\n", resp.transaction_id, resp.value);
         } 
         else 
         {
-            resp.status = 1; // ERROR
+            resp.status = 1;
             resp.value = 0;
-            printf("[RTU Server] transaction_id %d failed\n", resp.transaction_id);
+            connected = 0; // Đánh dấu mất kết nối để kết nối lại vòng sau
+
+            printf("[RTU Server] transaction_id %d failed, reconnecting next round\n", req.transaction_id);
         }
 
         add_response(resp);
     }
 
-    modbus_close(ctx);
-    modbus_free(ctx);
-    return NULL;
+    // Cleanup (đề phòng - thường không tới đây)
+    if (ctx) 
+    {
+        modbus_close(ctx);
+        modbus_free(ctx);
+    }
 
+    return NULL;
 }
+
 
 //======================== Thread 3: Gửi phản hồi lên Redis (modbus_response) =====================
 void *send_response_thread(void *arg) 
@@ -288,6 +308,7 @@ void *send_response_thread(void *arg)
         free(json_str);
         json_decref(root);
     }
+    
     redisFree(redis);
     return NULL;
 }
