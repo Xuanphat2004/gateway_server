@@ -140,7 +140,11 @@ void *process_request_thread(void *arg)
         printf("[TCP Server processing] Handling transaction ID: %d\n", packet.transaction_id);
         // printf("[DB] Lookup for address %d\n", packet.address);    // mapping address
         int new_address = lookup_mapped_address(db, packet.rtu_id, packet.address);
-
+        if (new_address < 0) 
+        {
+            printf("[TCP Server mapping] Failed to map address %d for RTU ID %d\n", packet.address, packet.rtu_id);
+            continue; // skip this request if mapping failed
+        }
         // send request to Redis server
         char json_packet[256];
         snprintf(json_packet, sizeof(json_packet),
@@ -155,7 +159,6 @@ void *process_request_thread(void *arg)
 
         printf("[TCP Server send request] Sending request to Redis: %s\n", json_packet);
         redisCommand(redis, "PUBLISH modbus_request %s", json_packet); // send request to Redis channel - modbus_request
-
         pthread_mutex_lock(&pending_mutex);                      // save socket, is waiting for response from RTU server
         pending_responses[pending_count].transaction_id = packet.transaction_id;
         pending_responses[pending_count].client_sock    = packet.client_sock;
@@ -251,7 +254,6 @@ void *response_listener_thread(void *arg)
 int lookup_mapped_address(sqlite3 *db, int rtu_id, int tcp_address)
 {
     int new_address = tcp_address;  
-
     const char *sql = "SELECT rtu_address FROM mapping WHERE rtu_id = ? AND tcp_address = ?";
     sqlite3_stmt *stmt;
 
@@ -263,18 +265,19 @@ int lookup_mapped_address(sqlite3 *db, int rtu_id, int tcp_address)
         if (sqlite3_step(stmt) == SQLITE_ROW) 
         {
             new_address = sqlite3_column_int(stmt, 0);
-            printf("[TCP Server mapping] Found mapping: %d -> %d\n", tcp_address, new_address);
+            printf("[TCP Server mapping] Found mapping: %d -> %d\n", tcp_address, new_address);  
         } 
         else 
         {
             printf("[TCP Server mapping] No mapping found for address %d !!!\n", tcp_address);
+            new_address = -1;         
         }
-
-        sqlite3_finalize(stmt);
+        sqlite3_finalize(stmt); // clean up SQLite memory
     } 
     else 
     {
-        printf("[TCP Server mapping] Table not match !!! \n");
+        printf("[TCP Server mapping] Table don't have columm match !!! \n");
+        new_address = -1;  
     }
 
     return new_address;

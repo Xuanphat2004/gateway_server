@@ -24,25 +24,25 @@ sock = None
 try:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((HOST, PORT))
-    print("[Client] Kết nối thành công đến server tại {}:{}".format(HOST, PORT))
+    print("[Client] Successful connect at {}:{}".format(HOST, PORT))
 
     sock.sendall(packet)
-    print("[Client] Đã gửi gói tin Modbus TCP")
+    print("[Client] Sent Modbus TCP packet.")
 
     response = sock.recv(1024)
-    print("[Client] Phản hồi từ server (raw):", response)
+    print("[Client] Response from server (raw):", response)
 
     if response:
         response_values = list(response)
-        print("[Client] Phản hồi :", response_values)
+        print("[Client] response is :", response_values)
 
 except ConnectionRefusedError:
-    print("[Client] Không thể kết nối tới server tại {}:{}".format(HOST, PORT))
+    print("[Client] Disconnect to server at {}:{}".format(HOST, PORT))
 
 except Exception as e:
-    print("[Client] Lỗi xảy ra:", str(e))
+    print("[Client] Error at:", str(e))
 
 finally:
     if sock:
         sock.close()
-        print("[Client] Socket đã đóng.")
+        print("[Client] Socket closed.")

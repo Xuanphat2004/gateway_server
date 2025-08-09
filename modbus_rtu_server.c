@@ -127,7 +127,6 @@ ResponsePacket take_response()
     resp_front = (resp_front + 1) % MAX_QUEUE;
 
     pthread_mutex_unlock(&resp_mutex);
-
     return take_res;
 }
 
@@ -259,7 +258,7 @@ void *receive_request_thread(void *arg)
         {
             resp.status = 0;
             resp.value = value[0];
-            printf("[RTU Server] transaction_id %d success, value %d\n", resp.transaction_id, resp.value);
+            printf("[RTU Server] Transaction_id %d success, value %d\n", resp.transaction_id, resp.value);
         } 
         else 
         {
@@ -267,7 +266,7 @@ void *receive_request_thread(void *arg)
             resp.value = 0;
             connected = 0; // Đánh dấu mất kết nối để kết nối lại vòng sau
 
-            printf("[RTU Server] transaction_id %d failed, reconnecting next round\n", req.transaction_id);
+            printf("[RTU Server] Transaction_id %d failed, reconnecting next round\n", req.transaction_id);
         }
 
         add_response(resp);
