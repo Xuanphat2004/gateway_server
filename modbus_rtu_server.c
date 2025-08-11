@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,6 +8,7 @@
 #include <jansson.h>
 #include <modbus/modbus.h>
 #include <errno.h>
+#include <sys/time.h>  // struct timeval
 
 
 #define MAX_QUEUE 100
@@ -237,6 +239,12 @@ void *receive_request_thread(void *arg)
         int rc = -1;
         uint16_t value[req.quantity];
 
+        // Cấu hình timeout cho việc đọc dữ liệu
+        struct timeval timeout;
+        timeout.tv_sec = 1;    // Timeout 1 giây
+        timeout.tv_usec = 0;   // 0 microsecond
+        modbus_set_response_timeout(ctx, &timeout); 
+
         if (req.function == 3) 
         {
             rc = modbus_read_registers(ctx, req.address, req.quantity, value);
@@ -331,4 +339,3 @@ int main()
 
     return 0;
 }
-
