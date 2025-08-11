@@ -10,7 +10,7 @@ transaction_id = 1
 protocol_id = 0
 length = 6  # Số lượng byte của phần dữ liệu
 rtu_id = 10
-address = 41020
+address = 41060
 function = 3
 quantity = 10
 
