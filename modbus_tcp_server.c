@@ -118,7 +118,7 @@ void *tcp_receiver_thread(void *arg)
             } 
             else 
             {
-                printf("[TCP Server receive packet] Invalid packet\n");
+                printf("[TCP Server receive packet] Invalid packet !!!\n");
                 close(client_sock);                              
             }
         }
