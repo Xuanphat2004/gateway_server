@@ -239,11 +239,8 @@ void *receive_request_thread(void *arg)
         int rc = -1;
         uint16_t value[req.quantity];
 
-        // Cấu hình timeout cho việc đọc dữ liệu
-        struct timeval timeout;
-        timeout.tv_sec = 1;    // Timeout 1 giây
-        timeout.tv_usec = 0;   // 0 microsecond
-        modbus_set_response_timeout(ctx, &timeout); 
+        modbus_set_response_timeout(ctx, 1, 0);  // 1s
+        modbus_set_byte_timeout(ctx, 0, 500000); // 500ms
 
         if (req.function == 3) 
         {
