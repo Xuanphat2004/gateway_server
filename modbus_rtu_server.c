@@ -144,10 +144,10 @@ void *receive_request_thread(void *arg)
     }
     else 
     {
-        printf("[RTU Server connect Redis] Connected to Redis server\n");
+        printf("[RTU Server connect Redis] Connected to Redis server.\n");
     }
     freeReplyObject(reply);
-    printf("[RTU Server connect Redis] Subscribed to modbus_request\n");
+    printf("[RTU Server connect Redis] Subscribed to modbus_request.\n");
 
     while (1) 
     {
@@ -210,7 +210,7 @@ void *receive_request_thread(void *arg)
             ctx = modbus_new_rtu(SERIAL_PORT, BAUDRATE, PARITY, DATA_BITS, STOP_BITS); 
             if (!ctx) 
             {
-                fprintf(stderr, "[RTU Server] Failed to create Modbus RTU context\n");
+                fprintf(stderr, "[RTU Server] Failed to create Modbus RTU context !!!\n");
                 sleep(2);
                 continue;
             }
@@ -264,7 +264,7 @@ void *receive_request_thread(void *arg)
         {
             resp.status = 1;
             resp.value = 0;
-            connected = 0; // Đánh dấu mất kết nối để kết nối lại vòng sau
+            connected = 0; 
 
             printf("[RTU Server] Transaction_id %d failed, reconnecting next round\n", req.transaction_id);
         }

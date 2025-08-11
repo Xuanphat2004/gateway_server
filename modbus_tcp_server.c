@@ -30,7 +30,7 @@ typedef struct // structure for modbus TCP packet
     int address;            
     int function;          
     int quantity;           
-    int client_sock;        
+    int client_sock;      
 } 
 RequestPacket;
 
