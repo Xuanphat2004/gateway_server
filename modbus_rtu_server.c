@@ -240,11 +240,13 @@ void *receive_request_thread(void *arg)
         if (req.function == 3) 
         {
             rc = modbus_read_registers(ctx, req.address, req.quantity, value);
+            printf("[RTU] Read result: %d\n", rc);
             
         } 
         else if (req.function == 4) 
         {
             rc = modbus_read_input_registers(ctx, req.address, req.quantity, value);
+            printf("[RTU] Read result: %d\n", rc);
             
         } 
         else 
