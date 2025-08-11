@@ -112,3 +112,15 @@
 2025-08-08 14:13:52,511  * Restarting with stat
 2025-08-08 14:13:52,676  * Debugger is active!
 2025-08-08 14:13:52,676  * Debugger PIN: 288-503-126
+2025-08-11 10:24:49,123 [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8080
+ * Running on http://192.168.80.128:8080
+2025-08-11 10:24:49,124 [33mPress CTRL+C to quit[0m
+2025-08-11 10:24:49,124  * Restarting with stat
+2025-08-11 10:24:49,267  * Debugger is active!
+2025-08-11 10:24:49,267  * Debugger PIN: 102-590-502
+2025-08-11 10:24:52,286 127.0.0.1 - - [11/Aug/2025 10:24:52] "GET / HTTP/1.1" 200 -
+2025-08-11 10:25:13,092 Added mapping: TCP 41060 -> RTU ID 10, Address 1060
+2025-08-11 10:25:13,093 127.0.0.1 - - [11/Aug/2025 10:25:13] "[32mPOST /add_mapping HTTP/1.1[0m" 302 -
+2025-08-11 10:25:13,098 127.0.0.1 - - [11/Aug/2025 10:25:13] "GET / HTTP/1.1" 200 -
