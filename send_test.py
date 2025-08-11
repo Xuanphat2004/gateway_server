@@ -12,7 +12,7 @@ length = 6  # Số lượng byte của phần dữ liệu
 rtu_id = 10
 address = 41060
 function = 3
-quantity = 10
+quantity = 2
 
 # Đóng gói thành 7 trường 2 byte (big-endian)
 packet = struct.pack('!7H', transaction_id, protocol_id, length, rtu_id, address, function, quantity)

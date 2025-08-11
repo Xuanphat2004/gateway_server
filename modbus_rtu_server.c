@@ -144,6 +144,7 @@ void *receive_request_thread(void *arg)
     }
     else 
     {
+        printf("\n");
         printf("[RTU Server connect Redis] Connected to Redis server\n");
     }
     freeReplyObject(reply);
@@ -210,14 +211,14 @@ void *receive_request_thread(void *arg)
             ctx = modbus_new_rtu(SERIAL_PORT, BAUDRATE, PARITY, DATA_BITS, STOP_BITS); 
             if (!ctx) 
             {
-                fprintf(stderr, "[RTU Server] Failed to create Modbus RTU context\n");
+                fprintf(stderr, "[RTU Server] Failed to create Modbus RTU context !!!\n");
                 sleep(2);
                 continue;
             }
 
             if (modbus_connect(ctx) == -1) 
             {
-                fprintf(stderr, "[RTU Server] Modbus RTU connection failed: %s\n", modbus_strerror(errno));
+                fprintf(stderr, "[RTU Server] Modbus RTU connection failed: %s !!!\n", modbus_strerror(errno));
                 modbus_free(ctx);
                 ctx = NULL;
                 sleep(2);
@@ -225,10 +226,9 @@ void *receive_request_thread(void *arg)
             }
 
             connected = 1;
-            printf("[RTU Server] Connected to Modbus RTU device\n");
+            printf("[RTU Server] Connected to Modbus RTU device.\n");
         }
 
-        // Lấy request (chỉ lấy khi đã kết nối)
         RequestPacket req = take_request();
 
         // Gán địa chỉ thiết bị
@@ -240,16 +240,16 @@ void *receive_request_thread(void *arg)
         if (req.function == 3) 
         {
             rc = modbus_read_registers(ctx, req.address, req.quantity, value);
-            printf(rc);
+            
         } 
         else if (req.function == 4) 
         {
             rc = modbus_read_input_registers(ctx, req.address, req.quantity, value);
-            printf(rc);
+            
         } 
         else 
         {
-            printf("[RTU Server] Unsupported function: %d\n", req.function);
+            printf("[RTU Server] Unsupported function: %d !!!\n", req.function);
             rc = -1;
         }
 
@@ -260,21 +260,19 @@ void *receive_request_thread(void *arg)
         {
             resp.status = 0;
             resp.value = value[0];
-            printf("[RTU Server] Transaction_id %d success, value %d\n", resp.transaction_id, resp.value);
+            printf("[RTU Server] Transaction_id %d success, value %d .\n", resp.transaction_id, resp.value);
         } 
         else 
         {
             resp.status = 1;
             resp.value = 0;
-            connected = 0; // Đánh dấu mất kết nối để kết nối lại vòng sau
-
-            printf("[RTU Server] Transaction_id %d failed, reconnecting next round\n", req.transaction_id);
+            connected = 0; 
+            printf("[RTU Server] Transaction_id %d failed to get data from device, try again !!!\n", req.transaction_id);
         }
 
         add_response(resp);
     }
 
-    // Cleanup (đề phòng - thường không tới đây)
     if (ctx) 
     {
         modbus_close(ctx);

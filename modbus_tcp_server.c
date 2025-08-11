@@ -91,7 +91,8 @@ void *tcp_receiver_thread(void *arg)
 
     addr.sin_addr.s_addr =  inet_addr(CLOUD_ADDRESS);          // accept connection with IP address
     bind(listenfd, (struct sockaddr *)&addr, sizeof(addr));      
-    listen(listenfd, 5);                                         // listen max 5 connections
+    listen(listenfd, 5);
+    printf("\n");                                         
     printf("[TCP connect with Cloud] Listening on port %d...\n", PORT);             // ------------------------------------
 
     while (1) 
