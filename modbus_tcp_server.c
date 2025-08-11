@@ -142,7 +142,8 @@ void *process_request_thread(void *arg)
         int new_address = lookup_mapped_address(db, packet.rtu_id, packet.address);
         if (new_address < 0) 
         {
-            printf("[TCP Server mapping] Failed to map address %d for RTU ID %d\n", packet.address, packet.rtu_id);
+            printf("[TCP Server mapping] Failed to mapping address %d for RTU ID %d\n", packet.address, packet.rtu_id);
+            printf("\n");
             continue; // skip this request if mapping failed
         }
         // send request to Redis server
