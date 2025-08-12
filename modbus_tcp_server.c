@@ -214,19 +214,24 @@ void *response_listener_thread(void *arg)
                 int transaction_id = json_integer_value(json_object_get(root, "transaction_id"));
                 int status = json_integer_value(json_object_get(root, "status"));
                 int value = json_integer_value(json_object_get(root, "value"));
-                printf("[TCP Server receive response] Received transaction_id %d with status %d and value %d\n", transaction_id, status, value);
-                pthread_mutex_lock(&pending_mutex);               // Tìm socket chờ tương ứng
+                
+                printf("[TCP Server receive response] Received data for transaction_id %d with value %d\n", transaction_id, value);
+                
+                pthread_mutex_lock(&pending_mutex);               
                 int found = 0;
                 for (int i = 0; i < pending_count; ++i) 
                 {
                     if (pending_responses[i].transaction_id == transaction_id) 
                     {
                         int client_sock = pending_responses[i].client_sock;
+                        
                         uint8_t response[6] = {transaction_id, status, value, 0, 0, 0};
                         send(client_sock, response, 6, 0);       // feedback response to Cloud server
+                        printf("Value response for client: %d\n", value);
+                        
                         close(client_sock);                      // close client socket
 
-                        for (int j = i; j < (pending_count - 1); j++)
+                        for (int j = i; j < (pending_count - 1); j++) // delete response from pending_responses
                         {
                             pending_responses[j] = pending_responses[j + 1];
                         }       
@@ -239,7 +244,7 @@ void *response_listener_thread(void *arg)
                 pthread_mutex_unlock(&pending_mutex);
                 if (!found) 
                 {
-                    printf("[REDIS] Unknown transaction_id: %d\n", transaction_id);
+                    printf("[TCP Server status] Unknown transaction_id: %d\n", transaction_id);
                 }
                 json_decref(root);
             }

@@ -28,7 +28,7 @@ try:
 
     sock.sendall(packet)
     print("[Client] Sent Modbus TCP packet.")
-
+    
     response = sock.recv(1024)
     print("[Client] Response from server (raw):", response)
 
