@@ -214,7 +214,7 @@ void *response_listener_thread(void *arg)
                 int transaction_id = json_integer_value(json_object_get(root, "transaction_id"));
                 int status = json_integer_value(json_object_get(root, "status"));
                 int value = json_integer_value(json_object_get(root, "value"));
-
+                printf("[TCP Server receive response] Received transaction_id %d with status %d and value %d\n", transaction_id, status, value);
                 pthread_mutex_lock(&pending_mutex);               // Tìm socket chờ tương ứng
                 int found = 0;
                 for (int i = 0; i < pending_count; ++i) 
