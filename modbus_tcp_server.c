@@ -196,7 +196,7 @@ void *response_listener_thread(void *arg)
             //                     JSON data format:
             //                        "message"                    -> element[0] - type of message,
             //                    "modbus_response"                -> element[1] - channel name,
-            // "{\"transaction_id\":1,\"status\":0,\"value\":123}" -> element[2] - main 
+            // "{\"transaction_id\":1,\"status\":0,\"value\":123}" -> element[2] - main data 
             //-------------------------------------------------------------------------------------------------
 
             if (message_reply -> type == REDIS_REPLY_ARRAY && message_reply -> elements == 3) 
@@ -211,8 +211,11 @@ void *response_listener_thread(void *arg)
                     continue;
                 }
 
-                int transaction_id = json_integer_value(json_object_get(root, "transaction_id"));
-                int status = json_integer_value(json_object_get(root, "status"));
+                uint8_t transaction_id = json_integer_value(json_object_get(root, "transaction_id"));
+                uint8_t rtu_id         = json_integer_value(json_object_get(root, "rtu_id"));
+                int address            = json_integer_value(json_object_get(root, "rtu_address"));
+                int function           = json_integer_value(json_object_get(root, "function"));
+                // int status = json_integer_value(json_object_get(root, "status"));
                 int value = json_integer_value(json_object_get(root, "value"));
                 
                 printf("[TCP Server receive response] Received data for transaction_id %d with value %d\n", transaction_id, value);
@@ -225,10 +228,10 @@ void *response_listener_thread(void *arg)
                     {
                         int client_sock = pending_responses[i].client_sock;
                         
-                        uint8_t response[6] = {transaction_id, status, value, 0, 0, 0};
-                        send(client_sock, response, 6, 0);       // feedback response to Cloud server
-                        printf("Value response for client: %d\n", value);
-                        
+                        uint8_t response[8] = {transaction_id, rtu_id, address, function, (value >> 8) & 0xFF,value & 0xFF, 0, 0};
+                        send(client_sock, response, 8, 0);       // feedback response to Cloud server
+                        printf("Value response for client have rtu_id: %d is %d\n", rtu_id, value);
+                        printf("\n");
                         close(client_sock);                      // close client socket
 
                         for (int j = i; j < (pending_count - 1); j++) // delete response from pending_responses

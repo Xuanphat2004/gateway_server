@@ -84,7 +84,10 @@ RequestPacket take_request()
 //========================= structure packet save response from Modbus device ===========================
 typedef struct 
 {
-    int transaction_id;
+    uint8_t transaction_id;
+    uint8_t rtu_id;
+    int address;
+    int function; 
     int status;
     int value;
 } 
@@ -189,7 +192,7 @@ void *receive_request_thread(void *arg)
             freeReplyObject(msg);
         }
     }
-    redisFree(redis);
+    redisFree(redis); // clean up Redis connection
 
     return NULL;
 }
@@ -233,8 +236,7 @@ void *receive_request_thread(void *arg)
 
         RequestPacket req = take_request();
 
-        // Gán địa chỉ thiết bị
-        modbus_set_slave(ctx, req.rtu_id);
+        modbus_set_slave(ctx, req.rtu_id); // deivce address
 
         int rc = -1;
         uint16_t value[req.quantity];
@@ -245,13 +247,13 @@ void *receive_request_thread(void *arg)
         if (req.function == 3) 
         {
             rc = modbus_read_registers(ctx, req.address, req.quantity, value);
-            printf("[RTU] Read holding 0x03 result: %d\n", rc);
+            printf("[RTU Server] Number of registers read (Holding Regiser 0x03): %d\n", rc);
             
         } 
         else if (req.function == 4) 
         {
             rc = modbus_read_input_registers(ctx, req.address, req.quantity, value);
-            printf("[RTU] Read input 0x04 result: %d\n", rc);
+            printf("[RTU Server] Number of registers read (Input Regiser 0x04): %d\n", rc);
             
         } 
         else 
@@ -267,14 +269,17 @@ void *receive_request_thread(void *arg)
         {
             resp.status = 0;
             resp.value = value[0];
-            printf("[RTU Server] Transaction_id %d success, value %d .\n", resp.transaction_id, resp.value);
+            resp.rtu_id = req.rtu_id;
+            resp.address = req.address;
+            printf("[RTU Server get data] Success to get data from RTU_ID: %d with transaction_id: %d .\n", req.rtu_id, resp.transaction_id, resp.value);
+            printf("[RTU Server get data] data value:  %d .\n", resp.value);
         } 
         else 
         {
             resp.status = 1;
             resp.value = 0;
             connected = 0; 
-            printf("[RTU Server] Transaction_id %d failed to get data from device, try again !!!\n", req.transaction_id);
+            printf("[RTU Server get data] Transaction_id %d failed to get data from device, try again !!!\n", req.transaction_id);
         }
 
         add_response(resp);
@@ -290,7 +295,7 @@ void *receive_request_thread(void *arg)
 }
 
 
-//======================== Thread 3: Gửi phản hồi lên Redis (modbus_response) =====================
+//======================== Thread 3: send response for tcp server (modbus_response) =====================
 void *send_response_thread(void *arg) 
 {
     redisContext *redis = redisConnect("127.0.0.1", 6379);
@@ -301,15 +306,15 @@ void *send_response_thread(void *arg)
 
         json_t *root = json_object();
         json_object_set_new(root, "transaction_id", json_integer(resp.transaction_id));
-        json_object_set_new(root, "status", json_integer(resp.status));
+        json_object_set_new(root, "rtu_id", json_integer(resp.rtu_id));
+        json_object_set_new(root, "rtu_address", json_integer(resp.address));
+        json_object_set_new(root, "function", json_integer(resp.function));
+        // json_object_set_new(root, "status", json_integer(resp.status));
         json_object_set_new(root, "value", json_integer(resp.value));
         char *json_str = json_dumps(root, 0);
 
         redisCommand(redis, "PUBLISH modbus_response %s", json_str);
-        printf("[RTU Server send response] Sent transaction_id %d with status %d and value %d\n", 
-            resp.transaction_id, 
-            resp.status, 
-            resp.value);
+        printf("[RTU Server send response] Sent transaction_id %d with value %d .\n", resp.transaction_id, resp.value);
 
         free(json_str);
         json_decref(root);
