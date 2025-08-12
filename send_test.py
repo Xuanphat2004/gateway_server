@@ -28,14 +28,15 @@ try:
 
     sock.sendall(packet)
     print("[Client] Sent Modbus TCP packet.")
-    
-    response = sock.recv(1024)
-    print("[Client] Response from server (raw):", response)
-
-    if response:
-        response_values = list(response)
-        print("[Client] response is :", response_values)
-
+    sock.settimeout(5)  # Đặt timeout cho việc nhận dữ liệu
+    try:
+        response = sock.recv(1024)
+        print("[Client] Response from server (raw):", response)
+        if response:
+            response_values = list(response)
+            print("[Client] response is :", response_values)
+    except socket.timeout:
+        print("[Client] No response received from server.")
 except ConnectionRefusedError:
     print("[Client] Disconnect to server at {}:{}".format(HOST, PORT))
 
