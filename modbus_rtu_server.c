@@ -8,7 +8,8 @@
 #include <jansson.h>
 #include <modbus/modbus.h>
 #include <errno.h>
-#include <sys/time.h> // struct timeval
+#include <sys/time.h>  // struct timeval
+#include "write_log.h" // include write_log function
 
 #define MAX_QUEUE 100
 #define DEVICE_ADDRESS "127.0.0.1"
