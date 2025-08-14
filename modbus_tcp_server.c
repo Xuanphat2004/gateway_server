@@ -92,6 +92,7 @@ void *tcp_receiver_thread(void *arg)
     listen(listenfd, 5);
     printf("\n");
     printf("[TCP connect with Cloud] Listening on port %d...\n", PORT); // ------------------------------------
+    write_log("write_log.log", "INFO", "[TCP connect with Cloud] Listening on port %d...", PORT);
 
     while (1)
     {
@@ -103,6 +104,7 @@ void *tcp_receiver_thread(void *arg)
             if (bytes >= 12)
             {
                 printf("[TCP Server receive packet] Received packet from Cloud\n");
+
                 RequestPacket next_packet;
                 next_packet.transaction_id = (buffer[0] << 8) | buffer[1];
                 next_packet.protocol_id = (buffer[2] << 8) | buffer[3];
@@ -112,7 +114,6 @@ void *tcp_receiver_thread(void *arg)
                 next_packet.function = (buffer[10] << 8) | buffer[11];
                 next_packet.quantity = (buffer[12] << 8) | buffer[13];
                 next_packet.client_sock = client_sock;
-                printf(" ");
                 add_queue(next_packet);
                 write_log("write_log.log", "INFO", "Received packet: transaction_id=%d, rtu_id=%d, address=%d, function=%d, quantity=%d",
                           next_packet.transaction_id, next_packet.rtu_id, next_packet.address, next_packet.function, next_packet.quantity);
@@ -143,7 +144,7 @@ void *process_request_thread(void *arg)
         int new_address = lookup_mapped_address(db, packet.rtu_id, packet.address);
         if (new_address < 0)
         {
-            printf("[TCP Server mapping] Failed to map address %d for RTU ID %d\n", packet.address, packet.rtu_id);
+            printf("[TCP Server mapping] Failed to mapping address %d for RTU ID %d\n", packet.address, packet.rtu_id);
             continue; // skip this request if mapping failed
         }
         // send request to Redis server
@@ -159,6 +160,7 @@ void *process_request_thread(void *arg)
                  packet.quantity);
 
         printf("[TCP Server send request] Sending request to Redis: %s\n", json_packet);
+        write_log("write_log.log", "INFO", "[TCP Server send request] Sending request to Redis: %s", json_packet);
         redisCommand(redis, "PUBLISH modbus_request %s", json_packet); // send request to Redis channel - modbus_request
         pthread_mutex_lock(&pending_mutex);                            // save socket, is waiting for response from RTU server
         pending_responses[pending_count].transaction_id = packet.transaction_id;
@@ -182,7 +184,6 @@ void *response_listener_thread(void *arg)
     if (reply) // wait for response from Redis channel - modbus_response
     {
         freeReplyObject(reply);
-
         printf("[TCP Server wait for response] waiting for responses from RTU server ...\n");
     }
 
@@ -219,7 +220,8 @@ void *response_listener_thread(void *arg)
                 int value = json_integer_value(json_object_get(root, "value"));
 
                 printf("[TCP Server receive response] Received data for transaction_id %d with value %d\n", transaction_id, value);
-
+                write_log("write_log.log", "INFO", "[TCP Server receive response] Received data for transaction_id %d with value %d",
+                          transaction_id, value);
                 pthread_mutex_lock(&pending_mutex);
                 int found = 0;
                 for (int i = 0; i < pending_count; ++i)
@@ -230,7 +232,7 @@ void *response_listener_thread(void *arg)
 
                         uint8_t response[8] = {transaction_id, rtu_id, address, function, (value >> 8) & 0xFF, value & 0xFF, 0, 0};
                         send(client_sock, response, 8, 0); // feedback response to Cloud server
-                        printf("Value response for client have rtu_id: %d is %d\n", rtu_id, value);
+                        printf("[TCP Server receive packet] Value response for client have device ID: %d is %d\n", rtu_id, value);
                         printf("\n");
                         close(client_sock); // close client socket
 
