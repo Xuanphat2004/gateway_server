@@ -175,7 +175,7 @@ void *receive_request_thread(void *arg)
                 {
                     fprintf(stderr, "[RTU Server receive request] JSON parse error: %s\n", error.text);
                     write_log_log("write_log.log", "ERROR", "[RTU Server receive request] JSON parse error: %s !!!", error.text);
-                    write_log_db(redis, "ERROR", "JSON parse error: %s", error.text);
+                    write_log_db(db, "ERROR", "JSON parse error: %s", error.text);
                     freeReplyObject(msg);
                     continue;
                 }
