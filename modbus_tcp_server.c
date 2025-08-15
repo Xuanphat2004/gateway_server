@@ -92,7 +92,7 @@ void *tcp_receiver_thread(void *arg)
     listen(listenfd, 5);
     printf("\n");
     printf("[TCP connect with Cloud] Listening on port %d...\n", PORT); // ------------------------------------
-    write_log("write_log.log", "INFO", "[TCP connect with Cloud] Listening on port %d...", PORT);
+    write_log_log("write_log.log", "INFO", "[TCP connect with Cloud] Listening on port %d...", PORT);
 
     while (1)
     {
@@ -115,7 +115,7 @@ void *tcp_receiver_thread(void *arg)
                 next_packet.quantity = (buffer[12] << 8) | buffer[13];
                 next_packet.client_sock = client_sock;
                 add_queue(next_packet);
-                write_log("write_log.log", "INFO", "Received packet: transaction_id=%d, rtu_id=%d, address=%d, function=%d, quantity=%d",
+                write_log_log("write_log.log", "INFO", "Received packet: transaction_id=%d, rtu_id=%d, address=%d, function=%d, quantity=%d",
                           next_packet.transaction_id, next_packet.rtu_id, next_packet.address, next_packet.function, next_packet.quantity);
             }
             else
@@ -162,6 +162,7 @@ void *process_request_thread(void *arg)
         printf("[TCP Server send request] Sending request to Redis: %s\n", json_packet);
         write_log_log("write_log.log", "INFO", "[TCP Server send request] Sending request to Redis: %s", json_packet);
         write_log_db(db, "INFO", "Sending request to Redis: %s", json_packet);
+        
         redisCommand(redis, "PUBLISH modbus_request %s", json_packet); // send request to Redis channel - modbus_request
         pthread_mutex_lock(&pending_mutex);                            // save socket, is waiting for response from RTU server
         pending_responses[pending_count].transaction_id = packet.transaction_id;
@@ -237,6 +238,7 @@ void *response_listener_thread(void *arg)
                         uint8_t response[8] = {transaction_id, rtu_id, address, function, (value >> 8) & 0xFF, value & 0xFF, 0, 0};
                         send(client_sock, response, 8, 0); // feedback response to Cloud server
                         printf("[TCP Server receive packet] Value response for client have device ID: %d is %d\n", rtu_id, value);
+                        
                         printf("\n");
                         close(client_sock); // close client socket
 
@@ -280,7 +282,9 @@ int lookup_mapped_address(sqlite3 *db, int rtu_id, int tcp_address)
         if (sqlite3_step(stmt) == SQLITE_ROW)
         {
             new_address = sqlite3_column_int(stmt, 0);
+            
             write_log_log("write_log.log", "INFO", "[TCP Server mapping] Found mapping: %d -> %d", tcp_address, new_address);
+            write_log_db(db, "INFO", "Found mapping: %d -> %d", tcp_address, new_address);
             printf("[TCP Server mapping] Found mapping: %d -> %d\n", tcp_address, new_address);
         }
         else
