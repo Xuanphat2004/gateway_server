@@ -160,7 +160,7 @@ void *process_request_thread(void *arg)
                  packet.quantity);
 
         printf("[TCP Server send request] Sending request to Redis: %s\n", json_packet);
-        write_log("write_log.log", "INFO", "[TCP Server send request] Sending request to Redis: %s", json_packet);
+        write_log_log("write_log.log", "INFO", "[TCP Server send request] Sending request to Redis: %s", json_packet);
         write_log_db(db, "INFO", "Sending request to Redis: %s", json_packet);
         redisCommand(redis, "PUBLISH modbus_request %s", json_packet); // send request to Redis channel - modbus_request
         pthread_mutex_lock(&pending_mutex);                            // save socket, is waiting for response from RTU server
@@ -223,10 +223,9 @@ void *response_listener_thread(void *arg)
                 int value = json_integer_value(json_object_get(root, "value"));
 
                 printf("[TCP Server receive response] Received data for transaction_id %d with value %d\n", transaction_id, value);
-                write_log("write_log.log", "INFO", "[TCP Server receive response] Received data for transaction_id %d with value %d",
-                          transaction_id, value);
-                write_log_db(db, "INFO", "Received data for transaction_id %d with value %d",
-                             transaction_id, value);
+                write_log_log("write_log.log", "INFO", "[TCP Server receive response] Received data for transaction_id %d with value %d", transaction_id, value);
+                write_log_db(db, "INFO", "Received data for transaction_id %d with value %d", transaction_id, value);
+                
                 pthread_mutex_lock(&pending_mutex);
                 int found = 0;
                 for (int i = 0; i < pending_count; ++i)
@@ -281,6 +280,7 @@ int lookup_mapped_address(sqlite3 *db, int rtu_id, int tcp_address)
         if (sqlite3_step(stmt) == SQLITE_ROW)
         {
             new_address = sqlite3_column_int(stmt, 0);
+            write_log_log("write_log.log", "INFO", "[TCP Server mapping] Found mapping: %d -> %d", tcp_address, new_address);
             printf("[TCP Server mapping] Found mapping: %d -> %d\n", tcp_address, new_address);
         }
         else
