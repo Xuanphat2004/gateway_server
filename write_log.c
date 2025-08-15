@@ -54,7 +54,7 @@ void write_log_db(sqlite3 *db, const char *level, const char *format, ...)
 
     // Câu lệnh SQL - bảng cố định là 'logs'
     char sql[1024];
-    snprintf(sql, sizeof(sql), "INSERT INTO logs (timestamp, level, message) VALUES ('%s', '%s', '%s');", timestamp, level, message);
+    snprintf(sql, sizeof(sql), "INSERT INTO logs (timestamp, service, message) VALUES ('%s', '%s', '%s');", timestamp, level, message);
 
     // Thực thi câu lệnh
     char *errmsg = NULL;
