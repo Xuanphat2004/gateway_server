@@ -151,3 +151,56 @@
 2025-08-12 14:06:13,065 Added mapping: TCP 41012 -> RTU ID 10, Address 1012
 2025-08-12 14:06:13,066 127.0.0.1 - - [12/Aug/2025 14:06:13] "[32mPOST /add_mapping HTTP/1.1[0m" 302 -
 2025-08-12 14:06:13,072 127.0.0.1 - - [12/Aug/2025 14:06:13] "GET / HTTP/1.1" 200 -
+2025-08-14 15:50:55,724 [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8080
+ * Running on http://192.168.1.12:8080
+2025-08-14 15:50:55,724 [33mPress CTRL+C to quit[0m
+2025-08-14 15:50:55,727  * Restarting with stat
+2025-08-14 15:50:56,069  * Debugger is active!
+2025-08-14 15:50:56,080  * Debugger PIN: 915-253-144
+2025-08-14 15:51:09,257 127.0.0.1 - - [14/Aug/2025 15:51:09] "GET / HTTP/1.1" 200 -
+2025-08-14 15:51:10,052 127.0.0.1 - - [14/Aug/2025 15:51:10] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-08-14 15:58:12,952 [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8080
+ * Running on http://192.168.1.12:8080
+2025-08-14 15:58:12,952 [33mPress CTRL+C to quit[0m
+2025-08-14 15:58:12,953  * Restarting with stat
+2025-08-14 15:58:13,240  * Debugger is active!
+2025-08-14 15:58:13,242  * Debugger PIN: 915-253-144
+2025-08-14 15:58:16,220 127.0.0.1 - - [14/Aug/2025 15:58:16] "GET / HTTP/1.1" 200 -
+2025-08-14 15:59:02,621 [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8080
+ * Running on http://192.168.1.12:8080
+2025-08-14 15:59:02,621 [33mPress CTRL+C to quit[0m
+2025-08-14 15:59:02,623  * Restarting with stat
+2025-08-14 15:59:02,968  * Debugger is active!
+2025-08-14 15:59:02,971  * Debugger PIN: 915-253-144
+2025-08-14 15:59:05,027 127.0.0.1 - - [14/Aug/2025 15:59:05] "GET / HTTP/1.1" 200 -
+2025-08-14 15:59:39,561 [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8080
+ * Running on http://192.168.1.12:8080
+2025-08-14 15:59:39,561 [33mPress CTRL+C to quit[0m
+2025-08-14 15:59:39,562  * Restarting with stat
+2025-08-14 15:59:39,911  * Debugger is active!
+2025-08-14 15:59:39,912  * Debugger PIN: 915-253-144
+2025-08-14 15:59:42,335 127.0.0.1 - - [14/Aug/2025 15:59:42] "GET / HTTP/1.1" 200 -
+2025-08-14 16:01:44,076 [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8080
+ * Running on http://192.168.1.12:8080
+2025-08-14 16:01:44,076 [33mPress CTRL+C to quit[0m
+2025-08-14 16:01:44,078  * Restarting with stat
+2025-08-14 16:01:44,403  * Debugger is active!
+2025-08-14 16:01:44,405  * Debugger PIN: 915-253-144
+2025-08-14 16:01:46,249 127.0.0.1 - - [14/Aug/2025 16:01:46] "GET / HTTP/1.1" 200 -
+2025-08-14 16:15:16,428 127.0.0.1 - - [14/Aug/2025 16:15:16] "GET / HTTP/1.1" 200 -
+2025-08-14 16:15:16,457 127.0.0.1 - - [14/Aug/2025 16:15:16] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+2025-08-14 16:15:22,033 127.0.0.1 - - [14/Aug/2025 16:15:22] "GET / HTTP/1.1" 200 -
+2025-08-14 16:15:22,064 127.0.0.1 - - [14/Aug/2025 16:15:22] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+2025-08-14 16:15:23,205 127.0.0.1 - - [14/Aug/2025 16:15:23] "GET / HTTP/1.1" 200 -
+2025-08-14 16:15:23,239 127.0.0.1 - - [14/Aug/2025 16:15:23] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -
+2025-08-14 16:15:27,051 127.0.0.1 - - [14/Aug/2025 16:15:27] "[33mGET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1[0m" 404 -

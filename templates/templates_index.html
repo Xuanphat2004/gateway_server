@@ -1,37 +1,48 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <title>Modbus Mapping</title>
+    <title>Modbus Address Mapping</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 40px;
         }
-        h1, h2 {
-            color: #333;
+
+        h1,
+        h2 {
+            color: #e60606;
         }
+
         .form-group {
             margin-bottom: 10px;
         }
+
         label {
             width: 150px;
             display: inline-block;
         }
-        input[type="number"], input[type="submit"] {
+
+        input[type="number"],
+        input[type="submit"] {
             padding: 6px;
             font-size: 14px;
         }
+
         table {
             width: 60%;
             border-collapse: collapse;
             margin-top: 20px;
         }
-        th, td {
+
+        th,
+        td {
             padding: 10px;
-            border: 1px solid #999;
+            border: 1px solid #0c0505;
             text-align: center;
         }
+
         .delete-btn {
             background-color: #f44336;
             color: white;
@@ -39,25 +50,27 @@
             padding: 6px 12px;
             cursor: pointer;
         }
+
         .delete-btn:hover {
             background-color: #d32f2f;
         }
     </style>
 </head>
+
 <body>
-    <h1>Modbus TCP ⇄ RTU Mapping Config</h1>
+    <h1>ADDRESS MAPPING CONFIGURATION</h1>
 
     <form action="/add_mapping" method="POST">
         <div class="form-group">
-            <label for="tcp_address">TCP Address:</label>
+            <label for="tcp_address">TCP ADDRESS</label>
             <input type="number" name="tcp_address" id="tcp_address" required>
         </div>
         <div class="form-group">
-            <label for="rtu_id">RTU ID:</label>
+            <label for="rtu_id">DEVICE ID</label>
             <input type="number" name="rtu_id" id="rtu_id" min="1" max="247" required>
         </div>
         <div class="form-group">
-            <label for="rtu_address">RTU Address:</label>
+            <label for="rtu_address">RTU ADDRESS</label>
             <input type="number" name="rtu_address" id="rtu_address" required>
         </div>
         <div class="form-group">
@@ -66,13 +79,12 @@
         </div>
     </form>
 
-    <h2>Current Mappings</h2>
     <table>
         <tr>
-            <th>TCP Address</th>
-            <th>RTU ID</th>
-            <th>RTU Address</th>
-            <th>Action</th>
+            <th>TCP ADDRESS</th>
+            <th>DEVICE ID</th>
+            <th>RTU ADDRESS</th>
+            <th>ACTION</th>
         </tr>
         {% for mapping in mappings %}
         <tr>
@@ -82,12 +94,12 @@
             <td>
                 <form action="/delete_mapping/{{ mapping.tcp_address }}" method="POST" style="display:inline;">
                     <input type="submit" value="Delete" class="delete-btn"
-                           onclick="return confirm('Are you sure you want to delete this mapping?');">
+                        onclick="return confirm('Are you sure you want to delete this mapping?');">
                 </form>
             </td>
         </tr>
         {% endfor %}
     </table>
 </body>
-</html>
 
+</html>

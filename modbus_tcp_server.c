@@ -161,6 +161,7 @@ void *process_request_thread(void *arg)
 
         printf("[TCP Server send request] Sending request to Redis: %s\n", json_packet);
         write_log("write_log.log", "INFO", "[TCP Server send request] Sending request to Redis: %s", json_packet);
+        write_log_db(db, "INFO", "Sending request to Redis: %s", json_packet);
         redisCommand(redis, "PUBLISH modbus_request %s", json_packet); // send request to Redis channel - modbus_request
         pthread_mutex_lock(&pending_mutex);                            // save socket, is waiting for response from RTU server
         pending_responses[pending_count].transaction_id = packet.transaction_id;
@@ -222,6 +223,8 @@ void *response_listener_thread(void *arg)
                 printf("[TCP Server receive response] Received data for transaction_id %d with value %d\n", transaction_id, value);
                 write_log("write_log.log", "INFO", "[TCP Server receive response] Received data for transaction_id %d with value %d",
                           transaction_id, value);
+                write_log_db(db, "INFO", "Received data for transaction_id %d with value %d",
+                             transaction_id, value);
                 pthread_mutex_lock(&pending_mutex);
                 int found = 0;
                 for (int i = 0; i < pending_count; ++i)

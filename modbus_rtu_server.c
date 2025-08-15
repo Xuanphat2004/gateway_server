@@ -145,11 +145,12 @@ void *receive_request_thread(void *arg)
         printf("\n");
         printf("[RTU Server connect Redis] Connected to Redis server\n");
         write_log("write_log.log", "INFO", "[RTU Server connect Redis] Connected to Redis server");
+        write_log_db(redis, "INFO", "Connected to Redis server");
     }
     freeReplyObject(reply);
     printf("[RTU Server connect Redis] Subscribed to modbus_request\n");
     write_log("write_log.log", "INFO", "[RTU Server connect Redis] Subscribed to modbus_request");
-
+    write_log_db(redis, "INFO", "Subscribed to modbus_request");
     while (1)
     {
         //-------------------------------------------------------------------------------------------------
