@@ -38,7 +38,7 @@ void write_log_log(const char *write_log, const char *level, const char *format,
 
 //==============================================================
 // Function: write log to logs table in modbus_mapping.db
-void write_log_db(modbus_mapping *db, const char *level, const char *format, ...)
+void write_log_db(sqlite3 *db, const char *level, const char *format, ...)
 {
     char message[512];
     va_list args;
