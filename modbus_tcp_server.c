@@ -82,6 +82,8 @@ RequestPacket take_queue()
 // ===== thread 1: receive request packet from Cloud =====================================================
 void *tcp_receiver_thread(void *arg)
 {
+    sqlite3 *db;
+    sqlite3_open("modbus_mapping.db", &db);
     int listenfd = socket(AF_INET, SOCK_STREAM, 0); // -----------------------------------
     struct sockaddr_in addr = {0};                  // Cấu trúc địa chỉ server
     addr.sin_family = AF_INET;                      // AF_INET -> IPv4

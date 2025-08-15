@@ -223,7 +223,7 @@ void *send_command_thread(void *arg)
             if (!ctx)
             {
                 fprintf(stderr, "[RTU Server] Failed to create Modbus RTU connection !!!\n");
-                write_log("write_log.log", "ERROR", "[RTU Server] Failed to create Modbus RTU connection !!!");
+                write_log_log("write_log.log", "ERROR", "[RTU Server] Failed to create Modbus RTU connection !!!");
                 sleep(2);
                 continue;
             }
@@ -231,7 +231,7 @@ void *send_command_thread(void *arg)
             if (modbus_connect(ctx) == -1)
             {
                 fprintf(stderr, "[RTU Server] Modbus RTU connection failed: %s !!!\n", modbus_strerror(errno));
-                write_log("write_log.log", "ERROR", "[RTU Server] Failed to create Modbus RTU connection !!!");
+                write_log_log("write_log.log", "ERROR", "[RTU Server] Failed to create Modbus RTU connection !!!");
                 modbus_free(ctx);
                 ctx = NULL;
                 sleep(2);
@@ -240,7 +240,7 @@ void *send_command_thread(void *arg)
 
             connected = 1;
             printf("[RTU Server] Connected to Modbus RTU device.\n");
-            write_log("write_log.log", "INFO", "[RTU Server] Connected to Modbus RTU device.");
+            write_log_log("write_log.log", "INFO", "[RTU Server] Connected to Modbus RTU device.");
         }
 
         RequestPacket req = take_request();
@@ -266,7 +266,7 @@ void *send_command_thread(void *arg)
         else
         {
             printf("[RTU Server] Unsupported function: %d !!!\n", req.function);
-            write_log("write_log.log", "ERROR", "[RTU Server] Unsupported function: %d !!!", req.function);
+            write_log_log("write_log.log", "ERROR", "[RTU Server] Unsupported function: %d !!!", req.function);
             rc = -1;
         }
 
@@ -281,7 +281,7 @@ void *send_command_thread(void *arg)
             resp.address = req.address;
             printf("[RTU Server get data] Success to get data from RTU_ID: %d with transaction_id: %d .\n", req.rtu_id, resp.transaction_id, resp.value);
             printf("[RTU Server get data] data value:  %d .\n", resp.value);
-            write_log("write_log.log", "INFO", "[RTU Server get data] Success to get data from RTU_ID: %d with transaction_id: %d . Value: %d",
+            write_log_log("write_log.log", "INFO", "[RTU Server get data] Success to get data from RTU_ID: %d with transaction_id: %d . Value: %d",
                       req.rtu_id, resp.transaction_id, resp.value);
         }
         else
@@ -290,7 +290,7 @@ void *send_command_thread(void *arg)
             resp.value = 0;
             connected = 0;
             printf("[RTU Server get data] Transaction_id %d failed to get data from device, try again !!!\n", req.transaction_id);
-            write_log("write_log.log", "ERROR", "[RTU Server get data] Transaction_id %d failed to get data from device !!!", req.transaction_id);
+            write_log_log("write_log.log", "ERROR", "[RTU Server get data] Transaction_id %d failed to get data from device !!!", req.transaction_id);
         }
 
         add_response(resp);
@@ -327,8 +327,7 @@ void *send_response_thread(void *arg)
 
         redisCommand(redis, "PUBLISH modbus_response %s", json_str);
         printf("[RTU Server send response] Sent transaction_id %d with value %d .\n", resp.transaction_id, resp.value);
-        write_log("write_log.log", "INFO", "[RTU Server send response] Sent transaction_id %d with value %d .",
-                  resp.transaction_id, resp.value);
+        write_log_log("write_log.log", "INFO", "[RTU Server send response] Sent transaction_id %d with value %d .", resp.transaction_id, resp.value);
         printf("\n");
         free(json_str);
         json_decref(root);
