@@ -31,7 +31,7 @@ try:
     sock.settimeout(5)  # Đặt timeout cho việc nhận dữ liệu
     try:
         response = sock.recv(1024)
-        print("[Client] Response from server (raw):", response)
+        print("[Client] Response from server (raw bit):", response)
         if response:
             response_values = list(response)
             print("[Client] response is :", response_values)

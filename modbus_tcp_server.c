@@ -180,6 +180,8 @@ void *process_request_thread(void *arg)
 // ===== thread 3: listen response form Redis and send for TCP client ====================================
 void *response_listener_thread(void *arg)
 {
+    sqlite3 *db;
+    sqlite3_open("modbus_mapping.db", &db);
     redisContext *redis = redisConnect("127.0.0.1", 6379); // connect to Redis
     redisReply *reply = redisCommand(redis, "SUBSCRIBE modbus_response");
     if (reply) // wait for response from Redis channel - modbus_response

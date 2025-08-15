@@ -3,6 +3,7 @@
 #include <time.h>
 #include <stdarg.h>
 #include "write_log.h"
+#include <sqlite3.h>
 
 // ==============================================================
 // Function: write log to write_log.log file
